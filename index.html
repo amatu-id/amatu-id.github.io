@@ -252,6 +252,9 @@ const P_ = {
   map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
   heart: '<path d="M12 20s-7.5-4.6-9-9.5C2 6.8 4.6 4 7.6 4c2 0 3.4 1.1 4.4 2.6C13 5.1 14.4 4 16.4 4c3 0 5.6 2.8 4.6 6.5-1.5 4.9-9 9.5-9 9.5z"/>',
   cart: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3h3l2.4 12h11l2-8H6.6"/>',
+  lang: '<path d="M3 5h9M7.5 3v2M5 5c.6 3.2 2.6 5.8 6 7.5M10 5c-.8 3.4-3 6-6.5 7.8"/><path d="m12 21 4.5-10 4.5 10M13.6 17.5h5.8"/>',
+  guitar: '<path d="M19.5 2.5 21.5 4.5 20 6l-2-2zM18.5 5.5 12.6 11.4"/><path d="M10.6 9.4c-1.7-.4-3.6.2-4.6 1.6-.6.8-1.6 1-2.4 1.6-1.9 1.4-2 4.3-.2 6.1 1.8 1.8 4.7 1.7 6.1-.2.6-.8.8-1.8 1.6-2.4 1.4-1 2-2.9 1.6-4.6"/><circle cx="8.4" cy="15.6" r="1.4"/>',
+  piano: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 20v-6M12 20v-6M16 20v-6"/><path d="M6.5 4v10h3V4M14.5 4v10h3V4" fill="currentColor"/>',
   link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>',
   // ui
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -284,17 +287,22 @@ const APPS = [
   { id: 'planner', name: 'Planner', icon: 'calendar', c: 10, d: 'To-do, kalender, catatan' },
   { id: 'btcusdt', name: 'BTCUSDT', icon: 'chart', c: 11, d: 'Grafik dan analisis BTC' },
   { id: 'rumah3d', name: 'Rumah 3D', icon: 'house', c: 12, d: 'Desain rumah 2D/3D' },
-  { id: 'rab', name: 'RAB Rumah', icon: 'ruler', c: 13, d: 'Rencana anggaran biaya otomatis' }
+  { id: 'rab', name: 'RAB Rumah', icon: 'ruler', c: 13, d: 'Rencana anggaran biaya otomatis' },
+  { id: 'english', name: 'English Course', icon: 'book', c: 16, d: 'Belajar bahasa Inggris + modul PDF' },
+  { id: 'mandarin', name: 'Mandarin', icon: 'lang', c: 17, d: 'Belajar Mandarin HSK 1–6' },
+  { id: 'guitars', name: 'Gitar', icon: 'guitar', c: 18, d: 'Tuner, tangga nada, kunci gitar' },
+  { id: 'piano', name: 'Amatu Piano', icon: 'piano', c: 19, d: 'Belajar piano dari dasar sampai jazz' }
 ];
 const COLORS = [
   ['#60a5fa', '#1d4ed8'], ['#4ade80', '#15803d'], ['#fcd34d', '#d97706'], ['#2dd4bf', '#0f766e'],
   ['#f87171', '#b91c1c'], ['#818cf8', '#3730a3'], ['#a3e635', '#4d7c0f'], ['#38bdf8', '#0369a1'],
   ['#e879f9', '#7e22ce'], ['#fb923c', '#c2410c'], ['#fb7185', '#be123c'], ['#facc15', '#a16207'],
-  ['#34d399', '#047857'], ['#d6a77a', '#78350f'], ['#94a3b8', '#334155'], ['#475569', '#0f172a']
+  ['#34d399', '#047857'], ['#d6a77a', '#78350f'], ['#94a3b8', '#334155'], ['#475569', '#0f172a'],
+  ['#22d3ee', '#0e7490'], ['#f43f5e', '#9f1239'], ['#fbbf24', '#92400e'], ['#6b7280', '#111827']
 ];
 const grad = i => { const c = COLORS[i] || COLORS[14]; return 'linear-gradient(150deg,' + c[0] + ',' + c[1] + ')'; };
 const ICON_CHOICES = ['doc', 'sheet', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
-  'star', 'folder', 'globe', 'book', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link'];
+  'star', 'folder', 'globe', 'book', 'lang', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link'];
 const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'], ['grafit', 'Grafit'], ['polos', 'Polos']];
 
 // ---------- per-account portal settings (synced like every other key) ----------
