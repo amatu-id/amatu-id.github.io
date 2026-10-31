@@ -5,8 +5,8 @@
   'use strict';
   if (window.AMATU) return;
 
-  const SB_URL = 'https://bbptcxpzzvgpxqylkrmw.supabase.co';
-  const SB_KEY = 'sb_publishable_Ny-WHCEZ3WmcLFsPBx9QeQ_9xgo7MxR';
+  const SB_URL = 'https://ieyqxmzztoxgpvwexbkj.supabase.co';
+  const SB_KEY = 'sb_publishable_o-PQxhkJJ8FG4mHYTUqEBw_uXv9n-eG';
   const PORTAL = '/';
   const MAX_ROW = 4800000;      // bigger records stay on this device only
   const BATCH = 3000000;
