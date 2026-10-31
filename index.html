@@ -103,7 +103,7 @@ svg{display:block}
 @keyframes sp{to{transform:rotate(360deg)}}
 
 /* ---------- home ---------- */
-.home{min-height:100dvh;display:flex;flex-direction:column;padding:max(14px,env(safe-area-inset-top)) 24px calc(120px + env(safe-area-inset-bottom))}
+.home{min-height:100dvh;display:flex;flex-direction:column;padding:max(14px,env(safe-area-inset-top)) 24px calc(var(--ic) * .82 + 62px + env(safe-area-inset-bottom))}
 .top{display:flex;align-items:center;gap:10px}
 .top .brand{margin:0;gap:10px;flex:none}.top .mark{width:38px;height:38px;border-radius:11px}.top .mark svg{width:22px;height:22px}
 .top .brand b{font-size:16px;letter-spacing:.06em}
@@ -123,7 +123,7 @@ svg{display:block}
 .resume{display:inline-flex;align-items:center;gap:10px;margin-top:10px;border-radius:14px;padding:8px 14px 8px 8px;cursor:pointer;border:1px solid var(--gline)}
 .resume .mi{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff}.resume .mi svg{width:17px;height:17px}
 .resume small{display:block;font-size:11.5px;color:var(--soft);line-height:1.1}.resume b{font-size:14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(var(--ic) + 34px),1fr));gap:26px 10px;padding:8px 0 30px;align-content:start;flex:1;min-height:200px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(var(--ic) + 34px),1fr));gap:calc(var(--ic) * .34) 10px;padding:8px 0 calc(var(--ic) * .3);align-content:start;flex:1;min-height:0}
 .tile{display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer;touch-action:manipulation}
 .ic{width:var(--ic);height:var(--ic);border-radius:calc(var(--ic) * .26);display:flex;align-items:center;justify-content:center;color:#fff;position:relative;
   box-shadow:0 8px 20px rgba(15,23,42,.18),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .18s cubic-bezier(.3,.7,.4,1.3)}
@@ -131,7 +131,7 @@ svg{display:block}
 .ic svg{width:46%;height:46%}
 .tile:hover .ic{transform:translateY(-3px) scale(1.04)}
 .tile:active .ic{transform:scale(.94)}
-.lb{font-size:12.5px;font-weight:500;text-align:center;max-width:calc(var(--ic) + 30px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+.lb{font-size:clamp(11px,calc(var(--ic) * .17),15px);font-weight:500;text-align:center;max-width:calc(var(--ic) + 30px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   text-shadow:0 1px 2px color-mix(in srgb,var(--bg) 70%,transparent)}
 html[data-nolabel] .grid .lb{display:none}
 .x{position:absolute;top:-7px;left:calc(50% - var(--ic)/2 - 7px);width:24px;height:24px;border-radius:50%;border:0;background:rgba(30,41,59,.85);color:#fff;
@@ -200,16 +200,19 @@ html[data-nolabel] .grid .lb{display:none}
   .hero>div:last-child{text-align:left!important}
   .hero{padding:22px 2px 16px}
   .clock{font-size:50px}
-  .grid{grid-template-columns:repeat(4,1fr);gap:20px 6px}
+  .grid{grid-template-columns:repeat(4,1fr);gap:calc(var(--ic) * .3) 6px}
   html[data-size=l] .grid{grid-template-columns:repeat(3,1fr)}
   html[data-size=s] .grid{grid-template-columns:repeat(5,1fr)}
   :root{--ic:62px}html[data-size=s]{--ic:52px}html[data-size=l]{--ic:76px}
-  .lb{font-size:11.5px}
+  .lb{font-size:clamp(10px,calc(var(--ic) * .185),12px)}
   .dock{gap:10px;padding:10px 12px;max-width:calc(100% - 24px)}
   .ov{align-items:flex-end;padding:0}
   .sheet{border-radius:22px 22px 0 0;max-height:92dvh;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
   .pad{grid-template-columns:repeat(3,68px)}.pad button{height:68px}
 }
+@media (max-height:760px){.hero{padding-top:14px;padding-bottom:12px}.clock{font-size:48px}}
+@media (max-height:700px) and (max-width:640px){.hero{padding:6px 2px 8px}.clock{font-size:34px}.tile{gap:5px}}
+@media (max-height:640px){.clock{font-size:34px}.date{font-size:13px;margin-top:2px}.hi{font-size:18px}.resume{margin-top:6px}}
 @media (max-width:380px){.grid{grid-template-columns:repeat(3,1fr)}.walls{grid-template-columns:repeat(3,1fr)}}
 @media (prefers-reduced-motion:reduce){.editing .tile .ic{animation:none}}
 </style>
@@ -317,6 +320,7 @@ function theme() {
   r.dataset.wall = P.wall; r.dataset.size = P.size;
   P.labels ? delete r.dataset.nolabel : r.dataset.nolabel = '1';
   $('meta[name=theme-color]').content = r.dataset.mode === 'dark' ? '#0b1020' : '#eef2f7';
+  if (!query) fitHome();
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => P.mode === 'auto' && theme());
 
@@ -583,7 +587,36 @@ function renderTiles() {
   $('#resume').innerHTML = r ? '<button class="resume glass" data-open="' + esc(r.id) + '"><span class="mi" style="background:' + grad(m[r.id].c) + '">' + svg(m[r.id].icon) +
     '</span><span style="text-align:left"><small>Lanjutkan · ' + ago(r.at) + '</small><b>' + esc(m[r.id].name) + '</b></span></button>' : '';
   const rb = $('#resume [data-open]'); if (rb) rb.onclick = () => openItem(rb.dataset.open);
+  if (!query) fitHome();
 }
+// Icon size follows the window: bigger on wide screens, smaller until every tile and the Dock fit on one screen.
+function fitHome() {
+  const r = document.documentElement, g = $('#grid'); if (!g) return;
+  const W = innerWidth, H = innerHeight, phone = W <= 640, mult = { s: .84, m: 1, l: 1.18 }[P.size] || 1;
+  const fits = () => document.scrollingElement.scrollHeight <= H + 1;
+  const set = ic => r.style.setProperty('--ic', Math.round(ic) + 'px');
+  if (!phone) {
+    g.style.gridTemplateColumns = '';
+    let ic = Math.min(124, Math.max(72, Math.min(W / 19, H / 11))) * mult;
+    set(ic);
+    while (!fits() && ic > 40) set(ic -= 3);
+    return;
+  }
+  // phone: the column count (base, or one or two more) that gives the biggest icons with everything on screen
+  const base = W <= 380 ? 3 : { s: 5, m: 4, l: 3 }[P.size] || 4;
+  let best = null;
+  for (let c = base; c <= base + 2; c++) {
+    g.style.gridTemplateColumns = 'repeat(' + c + ',1fr)';
+    let ic = Math.min(84, (W - 32 - 6 * (c - 1)) / c - 24);
+    set(ic);
+    while (!fits() && ic > 30) set(ic -= 2);
+    if (fits() && (!best || ic > best.ic + 3)) best = { c, ic };
+    if (best && best.c === c && ic >= 56) break;   // big enough already
+  }
+  best = best || { c: base + 2, ic: 30 };
+  g.style.gridTemplateColumns = 'repeat(' + best.c + ',1fr)'; set(best.ic);
+}
+addEventListener('resize', () => { clearTimeout(fitHome.t); fitHome.t = setTimeout(() => !query && fitHome(), 120); });
 function setEdit(on) {
   editing = on; document.body.classList.toggle('editing', on);
   if (on) { if (query) { query = ''; $('#q').value = ''; renderTiles(); } toast('Seret untuk menggeser. Ketuk ikon untuk mengubah.'); }

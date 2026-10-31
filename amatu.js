@@ -437,6 +437,7 @@
     rtStart();
     listeners.push(kind => { if (kind === 'remote') banner(); });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', homeButton); else homeButton();
+    fitInit();
   }
   function homeButton() {
     const css = document.createElement('style');
@@ -479,6 +480,112 @@
     ok.onclick = async () => { ok.disabled = true; await flush().catch(() => { }); await pull().catch(() => { }); location.reload(); };
     no.onclick = () => d.remove();
     document.body.appendChild(d);
+  }
+
+  // ---------- fit to screen: the whole app visible at browser zoom 100%, desktop and phone ----------
+  // A page bigger than the window first gets the full width (centered max-width columns are released),
+  // then is scaled down with CSS zoom just enough to fit, per view, like zooming the browser out.
+  // Viewport units are rewritten to calc(x / var(--amz)) so 100vh stays the window height under zoom.
+  // A page that would need less than ZMIN keeps its normal scroll. On narrow screens toolbars that run
+  // past the right edge become horizontal scrollers. ?nofit turns it off.
+  function fitInit() {
+    if (/[?&]nofit\b/.test(location.search)) return;
+    const R = document.documentElement, VU = /(-?(?:\d+\.?\d*|\.\d+))((?:d|s|l)?v(?:h|w|min|max))\b/g;
+    const done = new WeakSet();
+    let z = 1, longH = -1, t = 0, mo = null, slk = false;
+    const zmin = () => innerWidth < 760 ? 0.84 : innerWidth >= 1800 ? 0.55 : 0.6;
+    const se = () => document.scrollingElement || R;
+    function setZ(v) { z = v; R.style.zoom = v === 1 ? '' : String(v); R.style.setProperty('--amz', String(v)); }
+    // slack: a few px of a 100vh-plus-margin floor (it never shrinks with zoom) shouldn't block fitting
+    function over(slack) {
+      const a = getComputedStyle(R), b = getComputedStyle(document.body), s = se();
+      const clipY = /hidden|clip/.test(a.overflowY + b.overflowY), clipX = /hidden|clip/.test(a.overflowX + b.overflowX);
+      return (!clipY && s.scrollHeight > innerHeight + (slack ? Math.min(60, innerHeight * 0.05) : 2)) || (!clipX && s.scrollWidth > innerWidth + 2);
+    }
+    function walk(rules) {
+      for (const r of rules) {
+        if (r.cssRules && r.cssRules.length) walk(r.cssRules);
+        const st = r.style; if (!st) continue;
+        for (let i = 0; i < st.length; i++) {
+          const p = st[i], v = st.getPropertyValue(p);
+          VU.lastIndex = 0;
+          if (VU.test(v)) st.setProperty(p, v.replace(VU, 'calc($1$2 / var(--amz, 1))'), st.getPropertyPriority(p));
+        }
+      }
+    }
+    function sheets() {
+      for (const s of document.styleSheets) {
+        if (done.has(s)) continue;
+        let rules; try { rules = s.cssRules; } catch { continue; }   // cross-origin sheet
+        done.add(s); try { walk(rules); } catch { }
+      }
+    }
+    function widen() {
+      if (innerWidth < 1100) return;
+      const W = innerWidth / z;
+      (function go(el, d) {
+        for (const c of el.children) {
+          const cs = getComputedStyle(c);
+          if (cs.position !== 'fixed' && cs.position !== 'absolute' && cs.maxWidth.endsWith('px')) {
+            const mw = parseFloat(cs.maxWidth), ml = parseFloat(cs.marginLeft), mr = parseFloat(cs.marginRight);
+            if (mw >= 900 && mw < W - 80 && ml > 30 && Math.abs(ml - mr) < 3) c.style.setProperty('max-width', 'none', 'important');
+          }
+          if (d < 4) go(c, d + 1);
+        }
+      })(document.body, 0);
+    }
+    function toolbars() {
+      if (innerWidth >= 1100) return;
+      const W = innerWidth;
+      for (const el of document.body.querySelectorAll('*')) {
+        if (el.id === 'amatu-home' || el.dataset.amfit) continue;
+        const r = el.getBoundingClientRect();
+        if (r.right <= W + 2 || r.left >= W - 20 || r.left < -2 || r.height < 16 || r.height > 160) continue;
+        const cs = getComputedStyle(el);
+        if (!/flex|grid/.test(cs.display) || cs.position === 'fixed' || cs.position === 'absolute' || /auto|scroll/.test(cs.overflowX)) continue;
+        const p = el.parentElement;
+        if (!p || p.getBoundingClientRect().right > W + 2) continue;
+        el.dataset.amfit = 'x';
+        Object.assign(el.style, { minWidth: '0', maxWidth: '100%', flexShrink: '1', overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none' });
+      }
+    }
+    function fit() {
+      if (!document.body) return;
+      toolbars();
+      setZ(1);
+      if (!over()) return;
+      widen();
+      if (!over()) return;
+      sheets();
+      setZ(zmin());
+      slk = over() && !over(true);   // only a fixed floor is left: judge with slack
+      if (over(slk)) { setZ(1); longH = se().scrollHeight; return; }
+      let lo = z, hi = 1;
+      for (let i = 0; i < 7; i++) { const m = (lo + hi) / 2; setZ(m); if (over(slk)) hi = m; else lo = m; }
+      setZ(Math.floor(lo * 100) / 100);
+    }
+    function check() {   // after DOM changes: cheap test first, full fit only when the answer changed
+      if (z === 1) { if (!over() || se().scrollHeight === longH) return; return run(); }
+      if (over(slk)) return run();
+      const z0 = z; setZ(Math.min(1, z0 + 0.03));
+      if (over(slk)) setZ(z0); else run();
+    }
+    function run() { try { fit(); } finally { mo && mo.takeRecords(); } }
+    const soon = (f, ms) => { clearTimeout(t); t = setTimeout(() => { try { f(); } finally { mo && mo.takeRecords(); } }, ms); };
+    function start() {
+      run();
+      mo = new MutationObserver(() => soon(check, 250));
+      mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open'] });
+      addEventListener('resize', () => soon(run, 120));
+      addEventListener('hashchange', () => soon(run, 60));
+      addEventListener('popstate', () => soon(run, 60));
+      addEventListener('load', () => soon(run, 30));
+      document.fonts && document.fonts.ready.then(() => soon(run, 30));
+      [600, 1500, 3500].forEach(ms => setTimeout(() => soon(check, 0), ms));
+    }
+    R.style.setProperty('--amz', '1');
+    window.AMATU.fit = { z: () => z, run, setZ, over, sheets };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   }
 
   window.AMATU = {
