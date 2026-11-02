@@ -818,7 +818,7 @@ async function openAccount(u) {
 }
 
 // ---------- home (springboard) ----------
-let editing = false, homeTimers = [], stat = null, opening = false;
+let editing = false, homeTimers = [], use = null, opening = false;
 function stopHome() { homeTimers.forEach(clearInterval); homeTimers = []; document.body.classList.remove('editing', 'sheeted'); editing = false; closeQA(true); closeSpot(true); }
 function home() {
   stopHome(); keyHandler = homeKeys;
@@ -891,13 +891,15 @@ function syncDot() {
   el.title = n ? n + ' perubahan menunggu sinkron' : 'Tersinkron';
   $$('.tile[data-id=settings] .badge').forEach(b => { b.hidden = !n; b.textContent = n > 99 ? '99+' : n; });
   const st = $('#wsT'); if (st) st.innerHTML = n ? n + ' menunggu' + (on ? '' : ' · <em>offline</em>') : 'Tersinkron';
-  if (stat) {
-    const mb = stat.bytes / 1048576, pct = Math.min(100, mb / 60 * 100);
-    const b = $('#wsMB'); if (b) b.textContent = mb < 10 ? mb.toFixed(1) : Math.round(mb);
-    const r = $('#wsR'); if (r) r.setAttribute('stroke-dasharray', pct.toFixed(1) + ' 100');
+  // Ring = the shared Drive pool of the Portal (amt_usage: used bytes of total_mb).
+  if (use) {
+    const cap = use.total_mb * 1048576, pct = cap ? Math.min(100, use.used / cap * 100) : 0, [v, u] = fmtB(use.used).split(' ');
+    const b = $('#wsMB'); if (b) b.textContent = v;
+    const c = $('#wsCap'); if (c) c.textContent = u + ' / ' + fmtB(cap);
+    const r = $('#wsR'); if (r) r.setAttribute('stroke-dasharray', Math.max(pct, use.used ? 1 : 0).toFixed(1) + ' 100');
   }
 }
-function loadStat() { const s = A.sess(); if (!s) return; A.rpc('amt_status', { p_token: s.t }).then(st => { stat = st; syncDot(); }).catch(() => { }); }
+function loadStat() { const s = A.sess(); if (!s) return; A.usage().then(u => { use = u; syncDot(); }).catch(() => { }); }
 let batt = null;
 if (navigator.getBattery) navigator.getBattery().then(b => { batt = b; b.addEventListener('levelchange', paintBat); b.addEventListener('chargingchange', paintBat); paintBat(); }).catch(() => { });
 function paintBat() {
@@ -981,7 +983,7 @@ function widgetHtml(w) {
   }
   return '<div class="wg wg-sync" data-act="sync" title="Sinkronisasi"' + pos + '><div class="wb"><div class="rgw"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.9155" fill="none" stroke="currentColor" stroke-opacity=".12" stroke-width="3.6"/>' +
     '<circle id="wsR" cx="18" cy="18" r="15.9155" fill="none" stroke="#34c759" stroke-width="3.6" stroke-linecap="round" stroke-dasharray="0 100"/></svg>' +
-    '<div class="rgc"><b id="wsMB">–</b><small>MB / 60</small></div></div><div class="st" id="wsT"></div></div></div>';
+    '<div class="rgc"><b id="wsMB">–</b><small id="wsCap">MB / 10 GB</small></div></div><div class="st" id="wsT"></div></div></div>';
 }
 function curPage() { const g = $('#grid'); return g && g.clientWidth ? Math.round(g.scrollLeft / g.clientWidth) : 0; }
 function goPage(i, smooth = true) {
@@ -1462,7 +1464,7 @@ async function syncText(el) {
   const t = $('#syt', el); if (!t) return;
   const n = A.pending(), last = A.synced(), big = Object.keys(A.big()).length;
   let line = (n ? n + ' perubahan menunggu' : 'Tersinkron') + (last ? ' · ' + ago(last) : '');
-  try { const st = await A.rpc('amt_status', { p_token: A.sess().t }); stat = st; line += ' · ' + st.items + ' item, ' + (st.bytes / 1048576).toFixed(1) + ' MB'; } catch { }
+  try { const st = await A.rpc('amt_status', { p_token: A.sess().t }); line += ' · ' + st.items + ' item, ' + (st.bytes / 1048576).toFixed(1) + ' MB'; } catch { }
   if (big) line += ' · ' + big + ' item > 25 MB hanya di perangkat ini';
   t.textContent = line;
 }
