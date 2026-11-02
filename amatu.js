@@ -512,20 +512,35 @@
   // Viewport units are rewritten to calc(x / var(--amz)) so 100vh stays the window height under zoom.
   // A page that would need less than ZMIN keeps its normal scroll. On narrow screens toolbars that run
   // past the right edge become horizontal scrollers. ?nofit turns it off.
+  // Safe area: on iPhone / iPad (above all when the portal runs as a Home Screen app with a see-through status bar,
+  // and with viewport-fit=cover) the status bar, notch / Dynamic Island and home indicator cover the page edges.
+  // When app content sits under one of them, that side is kept clear: a page that doesn't scroll gets a frame
+  // (body fixed inside the safe area, viewport units shrunk to it), a scrolling page gets html padding.
   function fitInit() {
     if (/[?&]nofit\b/.test(location.search)) return;
     const R = document.documentElement, VU = /(-?(?:\d+\.?\d*|\.\d+))((?:d|s|l)?v(?:h|w|min|max))\b/g;
     const done = new WeakSet();
     let z = 1, longH = -1, t = 0, mo = null, slk = false;
+    let ins = null, need = { t: 0, r: 0, b: 0, l: 0 }, skip = {}, mode = '', clip0 = null;   // mode '' | 'box' | 'flow'
     const zmin = () => innerWidth < 760 ? 0.84 : innerWidth >= 1800 ? 0.55 : 0.6;
     const se = () => document.scrollingElement || R;
     function setZ(v) { z = v; R.style.zoom = v === 1 ? '' : String(v); R.style.setProperty('--amz', String(v)); }
+    function clips() {
+      const a = getComputedStyle(R), b = getComputedStyle(document.body);
+      return { y: /hidden|clip/.test(a.overflowY + b.overflowY), x: /hidden|clip/.test(a.overflowX + b.overflowX) };
+    }
     // slack: a few px of a 100vh-plus-margin floor (it never shrinks with zoom) shouldn't block fitting
     function over(slack) {
-      const a = getComputedStyle(R), b = getComputedStyle(document.body), s = se();
-      const clipY = /hidden|clip/.test(a.overflowY + b.overflowY), clipX = /hidden|clip/.test(a.overflowX + b.overflowX);
-      return (!clipY && s.scrollHeight > innerHeight + (slack ? Math.min(60, innerHeight * 0.05) : 2)) || (!clipX && s.scrollWidth > innerWidth + 2);
+      if (mode === 'box') {   // the app lives in the body frame now
+        const b = document.body, sl = slack ? Math.min(60, b.clientHeight * 0.05) : 2;
+        return (!clip0.y && b.scrollHeight > b.clientHeight + sl) || (!clip0.x && b.scrollWidth > b.clientWidth + 2);
+      }
+      const c = clips(), s = se();
+      return (!c.y && s.scrollHeight > innerHeight + (slack ? Math.min(60, innerHeight * 0.05) : 2)) || (!c.x && s.scrollWidth > innerWidth + 2);
     }
+    // x vh → calc((x vh − x% of the covered top+bottom) / zoom); --amsy etc. are 0 unless the safe frame is on
+    const UV = { h: '--amsy', w: '--amsx', min: '--amsn', max: '--amsm' };
+    const unit = (m, n, u) => 'calc((' + n + u + ' - ' + n + ' * var(' + UV[u.replace(/^[dsl]?v/, '')] + ', 0px) / 100) / var(--amz, 1))';
     function walk(rules) {
       for (const r of rules) {
         if (r.cssRules && r.cssRules.length) walk(r.cssRules);
@@ -533,7 +548,7 @@
         for (let i = 0; i < st.length; i++) {
           const p = st[i], v = st.getPropertyValue(p);
           VU.lastIndex = 0;
-          if (VU.test(v)) st.setProperty(p, v.replace(VU, 'calc($1$2 / var(--amz, 1))'), st.getPropertyPriority(p));
+          if (VU.test(v)) st.setProperty(p, v.replace(VU, unit), st.getPropertyPriority(p));
         }
       }
     }
@@ -560,7 +575,7 @@
     }
     function toolbars() {
       if (innerWidth >= 1100) return;
-      const W = innerWidth;
+      const W = innerWidth - (mode === 'box' ? need.r : 0);
       for (const el of document.body.querySelectorAll('*')) {
         if (el.id === 'amatu-home' || el.dataset.amfit) continue;
         const r = el.getBoundingClientRect();
@@ -572,6 +587,114 @@
         el.dataset.amfit = 'x';
         Object.assign(el.style, { minWidth: '0', maxWidth: '100%', flexShrink: '1', overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none' });
       }
+    }
+    // ----- safe area -----
+    let probe = null, css = null, ov0 = null;
+    const shifted = [];
+    function insets() {   // read at zoom 1 (later calls under zoom reuse the last value)
+      if (!probe) {
+        probe = document.createElement('i');
+        probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:' +
+          'env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+        R.appendChild(probe);   // beside body: never inside the app or the frame
+      }
+      if (z !== 1 && ins) return ins;
+      const c = getComputedStyle(probe), q = p => Math.round(parseFloat(c[p]) || 0);
+      return { t: q('paddingTop'), r: q('paddingRight'), b: q('paddingBottom'), l: q('paddingLeft') };
+    }
+    const CONTENT = /^(BUTTON|INPUT|SELECT|TEXTAREA|A|IMG|SVG|LABEL|VIDEO|H[1-6])$/;
+    function content(el) {   // something to read or tap (not a background, glass panel or drawing canvas)
+      if (el.closest('#amatu-home,#amatu-bar')) return false;
+      for (let d = 0; el && el !== document.body && d < 4; d++, el = el.parentElement) {
+        if (CONTENT.test(el.tagName.toUpperCase()) || /button|tab|menuitem|link/.test(el.getAttribute('role') || '')) return true;
+        for (const c of el.childNodes) if (c.nodeType === 3 && c.textContent.trim()) return true;
+      }
+      return false;
+    }
+    function hits(s, d) {   // app content found in the covered strip of side s (d px deep)
+      const W = innerWidth, H = innerHeight, out = [];
+      for (const f of [0.3, 0.65, 1]) {
+        const o = Math.max(1, d * f - 1.5);
+        const pts = [];
+        if (s === 't' || s === 'b') for (let x = 4; x < W; x += 10) pts.push([x, s === 't' ? o : H - o]);
+        else for (let y = 4; y < H; y += 10) pts.push([s === 'l' ? o : W - o, y]);
+        for (const [x, y] of pts) { const el = document.elementFromPoint(x, y); if (el && content(el) && !out.includes(el)) out.push(el); }
+      }
+      return out;
+    }
+    function backdrop(el) {   // background of the full-window layer behind el, for the strips left outside the frame
+      for (; el && el !== R; el = el.parentElement) {
+        const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+        if (r.width < innerWidth * 0.9 || r.height < innerHeight * 0.9) continue;
+        if (cs.backgroundImage !== 'none') return cs.backgroundImage;
+        if (!/^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor)) return cs.backgroundColor;
+      }
+      for (const w of document.body.children) {   // fixed wallpaper layers (aurora / blobs) beside the app
+        const r = w.getBoundingClientRect(), cs = getComputedStyle(w);
+        if (cs.position === 'fixed' && r.width >= innerWidth * 0.9 && r.height >= innerHeight * 0.9) {
+          if (cs.backgroundImage !== 'none') return cs.backgroundImage;
+          if (!/^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor)) return cs.backgroundColor;
+        }
+      }
+      return '';
+    }
+    function frameVars() {
+      const px = v => v + 'px', box = mode === 'box';
+      const sy = box ? need.t + need.b : 0, sx = box ? need.l + need.r : 0, port = innerWidth < innerHeight;
+      for (const [k, v] of [['--amst', need.t], ['--amsr', need.r], ['--amsb', need.b], ['--amsl', need.l],
+        ['--amsy', sy], ['--amsx', sx], ['--amsn', port ? sx : sy], ['--amsm', port ? sy : sx]]) R.style.setProperty(k, px(v));
+      R.classList.toggle('am-box', box); R.classList.toggle('am-flow', mode === 'flow');
+      R.dataset.amsafe = mode ? mode + ' ' + need.t + ',' + need.r + ',' + need.b + ',' + need.l : '';
+    }
+    function unframe() {
+      need = { t: 0, r: 0, b: 0, l: 0 };
+      if (ov0) { Object.assign(document.body.style, ov0); ov0 = null; }
+      for (const [el, top, bottom] of shifted.splice(0)) { el.style.top = top; el.style.bottom = bottom; }
+      mode = ''; frameVars();
+    }
+    function safe() {   // → true when the frame changed (then fit again)
+      const now = insets();
+      if (!ins || ['t', 'r', 'b', 'l'].some(s => now[s] !== ins[s])) { ins = now; skip = {}; if (mode) unframe(); }   // rotated
+      if (!(ins.t || ins.r || ins.b || ins.l) || !document.body) return false;
+      const add = [], found = [];
+      for (const s of ['t', 'r', 'b', 'l']) {
+        if (!ins[s] || need[s] || skip[s] || s === 't' && mode !== 'box' && se().scrollTop > 0) continue;
+        const h = hits(s, ins[s]); if (h.length) { add.push(s); found.push(...h); }
+      }
+      if (!add.length) return false;
+      if (!mode) {
+        clip0 = clips();
+        // a page that scrolls as a whole keeps its scroll and gets padding; an app-shaped page gets the frame
+        mode = over() && z === 1 ? 'flow' : 'box';
+        if (mode === 'box') {
+          const b = document.body.style;
+          ov0 = { overflowX: b.overflowX, overflowY: b.overflowY };
+          b.overflowX = clip0.x ? 'hidden' : 'auto'; b.overflowY = clip0.y ? 'hidden' : 'auto';
+          const a = getComputedStyle(R), bd = getComputedStyle(document.body), none = cs => cs.backgroundImage === 'none' && /^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor);
+          if (none(a) && none(bd)) { const bg = backdrop(found[0]); if (bg) R.style.background = bg; }
+        }
+      }
+      const sw0 = Math.max(se().scrollWidth, innerWidth);   // (a phone's layout width itself grows with the page)
+      for (const s of add) need[s] = ins[s];
+      frameVars();
+      // a scrolling page whose rows can't get narrower would only grow sideways (and iOS would zoom it out): leave its sides
+      if (mode === 'flow' && (add.includes('l') || add.includes('r')) && se().scrollWidth > sw0 + 2) {
+        need.l = need.r = 0; skip.l = skip.r = 1; frameVars();
+      }
+      if (mode === 'flow') {   // padding moved the page; bars pinned to the window edge still sit under the strip
+        for (const s of add) for (let el of hits(s, ins[s])) {
+          for (; el && el !== document.body; el = el.parentElement) {
+            const cs = getComputedStyle(el);
+            if (cs.position !== 'fixed' && cs.position !== 'sticky') continue;
+            if (shifted.some(x => x[0] === el)) break;
+            if (s === 't' && cs.top !== 'auto') { shifted.push([el, el.style.top, el.style.bottom]); el.style.top = 'calc(' + cs.top + ' + var(--amst) / var(--amz, 1))'; }
+            else if (s === 'b' && cs.bottom !== 'auto') { shifted.push([el, el.style.top, el.style.bottom]); el.style.bottom = 'calc(' + cs.bottom + ' + var(--amsb) / var(--amz, 1))'; }
+            break;
+          }
+        }
+      }
+      if (mode === 'box') sheets();
+      return true;
     }
     function fit() {
       if (!document.body) return;
@@ -589,17 +712,37 @@
       setZ(Math.floor(lo * 100) / 100);
     }
     function check() {   // after DOM changes: cheap test first, full fit only when the answer changed
+      if (ins && ['t', 'r', 'b', 'l'].some(s => ins[s] && !need[s] && !skip[s]) && safe()) return run();
+      if (mode === 'box') sheets();   // stylesheets loaded later must shrink to the frame too
       if (z === 1) { if (!over() || se().scrollHeight === longH) return; return run(); }
       if (over(slk)) return run();
       const z0 = z; setZ(Math.min(1, z0 + 0.03));
       if (over(slk)) setZ(z0); else run();
     }
-    function run() { try { fit(); } finally { mo && mo.takeRecords(); } }
+    function run() { try { fit(); if (safe()) fit(); } finally { mo && mo.takeRecords(); } }
+    // iOS leaves a page that must not scroll shifted up after the keyboard closes (top cut off): put it back
+    function unscroll() {
+      if (editable(document.activeElement)) return;
+      if (mode === 'box') { const b = document.body; if (clip0.y && b.scrollTop) b.scrollTop = 0; if (clip0.x && b.scrollLeft) b.scrollLeft = 0; return; }
+      const c = clips(), s = se();
+      const y = scrollY && (c.y || s.scrollHeight <= innerHeight + 2), x = scrollX && (c.x || s.scrollWidth <= innerWidth + 2);
+      if (x || y) scrollTo(x ? 0 : scrollX, y ? 0 : scrollY);
+    }
     // Never re-zoom while someone is typing: a zoom change re-lays out and repaints the whole page (canvases are
     // cleared and redrawn, glass panels re-blurred), which shows up as a flicker on every pause between keystrokes.
     let typedAt = 0;
     const editable = n => { const el = n && (n.nodeType === 1 ? n : n.parentElement); return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)); };
     const busy = () => Date.now() - typedAt < 1500 || editable(document.activeElement) && innerWidth < 1100;
+    // the safe frame is set once per side, so it may come while a field has focus (Sheets keeps its editor focused)
+    let st = 0;
+    const safeSoon = ms => {
+      if (!ins || !['t', 'r', 'b', 'l'].some(s => ins[s] && !need[s] && !skip[s])) return;
+      clearTimeout(st);
+      st = setTimeout(function go() {
+        if (Date.now() - typedAt < 1500) { st = setTimeout(go, 700); return; }
+        try { if (safe()) fit(); } finally { mo && mo.takeRecords(); }
+      }, ms);
+    };
     const soon = (f, ms) => {
       clearTimeout(t);
       t = setTimeout(function go() {
@@ -612,7 +755,7 @@
       addEventListener('keydown', () => { typedAt = Date.now(); }, true);
       addEventListener('compositionupdate', () => { typedAt = Date.now(); }, true);
       // edits inside the document being written (contenteditable / text fields) don't change the app's frame
-      mo = new MutationObserver(recs => { if (recs.some(r => !editable(r.target))) soon(check, 250); });
+      mo = new MutationObserver(recs => { if (recs.some(r => !editable(r.target))) { soon(check, 250); safeSoon(300); } });
       mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open'] });
       let lastW = innerWidth;
       addEventListener('resize', () => {
@@ -625,9 +768,26 @@
       addEventListener('load', () => soon(run, 30));
       document.fonts && document.fonts.ready.then(() => soon(run, 30));
       [600, 1500, 3500].forEach(ms => setTimeout(() => soon(check, 0), ms));
+      [400, 1200, 2500, 5000].forEach(safeSoon);
+      if (matchMedia('(pointer: coarse)').matches) {
+        let u = 0; const later = () => { clearTimeout(u); u = setTimeout(unscroll, 350); };
+        addEventListener('focusout', later, true);
+        window.visualViewport && visualViewport.addEventListener('resize', later);
+        addEventListener('orientationchange', () => soon(run, 200));
+      }
     }
     R.style.setProperty('--amz', '1');
-    window.AMATU.fit = { z: () => z, run, setZ, over, sheets };
+    css = document.createElement('style');
+    css.id = 'amatu-safe';
+    css.textContent = 'html.am-box{overflow:hidden!important;height:100%!important}' +
+      'html.am-box>body{position:fixed!important;box-sizing:border-box!important;margin:0!important;right:auto!important;bottom:auto!important;' +
+      'top:calc(var(--amst) / var(--amz, 1))!important;left:calc(var(--amsl) / var(--amz, 1))!important;' +
+      'width:calc((100vw - var(--amsx)) / var(--amz, 1))!important;height:calc((100dvh - var(--amsy)) / var(--amz, 1))!important;' +
+      'min-width:0!important;max-width:none!important;min-height:0!important;max-height:none!important;transform:translateZ(0)}' +
+      'html.am-flow{padding:calc(var(--amst) / var(--amz, 1)) calc(var(--amsr) / var(--amz, 1)) calc(var(--amsb) / var(--amz, 1)) calc(var(--amsl) / var(--amz, 1))!important}';
+    (document.head || R).appendChild(css);
+    done.add(css.sheet);
+    window.AMATU.fit = { z: () => z, run, setZ, over, sheets, safe: () => ({ mode, need, ins }) };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
   }
 

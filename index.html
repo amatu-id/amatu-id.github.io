@@ -131,6 +131,9 @@ svg{display:block}
 .home{position:fixed;inset:0;display:flex;flex-direction:column;padding-bottom:calc(env(safe-area-inset-bottom) + 12px);transform-origin:50% 50%;user-select:none;-webkit-user-select:none}
 .sbar{height:34px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:4px 22px 0;font-size:14.5px;font-weight:600}
 .sl{display:flex;gap:9px;align-items:baseline}.sl span{font-weight:500}
+/* iPad Home Screen app: the real status bar is drawn over the page, so drop the look-alike and start below it */
+@media (min-width:641px){.home{padding-top:env(safe-area-inset-top)}.sbar{padding-left:max(22px,env(safe-area-inset-left));padding-right:max(22px,env(safe-area-inset-right))}}
+@media (display-mode:standalone) and (pointer:coarse){.sbar{display:none}.home{padding-top:max(10px,env(safe-area-inset-top))}}
 .sr{display:flex;gap:10px;align-items:center}
 .sr svg{width:18px;height:18px}
 .sync{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent);cursor:pointer}
