@@ -27,12 +27,21 @@
   const local = k => k.startsWith('pt.');           // device-only keys of the portal itself
   const lsKeys = () => { const a = []; try { for (let i = 0; i < LS.length; i++) { const k = LS.key(i); if (k != null) a.push(k); } } catch { } return a; };
 
+  // ---------- page transitions: same-origin navigations cross-fade instead of flashing an empty frame ----------
+  // (Chrome / Safari cross-document View Transitions; the portal adds its own app-close zoom on top of this)
+  const vt = document.createElement('style');
+  vt.id = 'amatu-vt';
+  vt.textContent = '@view-transition{navigation:auto}' +
+    '::view-transition-group(root){animation-duration:.26s;animation-timing-function:cubic-bezier(.22,.9,.28,1)}' +
+    '@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}';
+  (document.head || document.documentElement).appendChild(vt);
+
   const DEV = lget('pt.dev') || (() => { const d = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); lset('pt.dev', d); return d; })();
 
   // ---------- session ----------
   const sess = () => jget('pt.sess', null);                         // {u, t, c}
   const owner = () => lget('pt.owner');                             // account whose app data lives on this device
-  const idleMin = () => { const p = jget('amatu.portal', null); return (p && p.idle) || 15; };
+  const idleMin = () => { const p = jget('amatu.portal', null), v = p && p.idle; return v === 0 ? Infinity : v || 15; };   // 0 = never lock
   function unlocked() {
     const s = sess(), k = jget('pt.unlock', null);
     return !!(s && k && k.u === s.u && owner() === s.u && Date.now() - k.at < idleMin() * 60000);
@@ -428,6 +437,7 @@
   function appGuard() {
     if (!unlocked()) {
       document.documentElement.style.visibility = 'hidden';
+      vt.remove();   // nothing was shown yet: no cross-fade from an empty page
       goPortal();
       return;
     }
