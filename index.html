@@ -657,7 +657,7 @@ const ERR = {
   pinold: 'PIN lama salah.', auth: 'Sesi berakhir, silakan masuk lagi.', pin: 'Masukkan PIN dulu.', quota: 'Penyimpanan cepat akun penuh (20 MB data kecil).', size: 'Data terlalu besar.',
   drive: 'Google Drive Portal belum tersambung. Hubungi admin.', upgrade: 'Versi lama — muat ulang halaman.'
 };
-const errText = e => /^quota:/.test((e && (e.code || e.error)) || '') ? 'Jatah Google Drive ' + ((e.code || e.error).slice(6) === 'drive' ? 'Portal (10 GB)' : 'aplikasi ' + (e.code || e.error).slice(6)) + ' penuh.' : ERR[(e && (e.code || e.error)) || ''] || ERR[e && e.message] || (e && e.message === 'Failed to fetch' ? ERR.net : 'Terjadi kesalahan: ' + ((e && (e.message || e.error)) || ''));
+const errText = e => /^quota:/.test((e && (e.code || e.error)) || '') ? 'Google Drive Portal (10 GB) penuh.' : ERR[(e && (e.code || e.error)) || ''] || ERR[e && e.message] || (e && e.message === 'Failed to fetch' ? ERR.net : 'Terjadi kesalahan: ' + ((e && (e.message || e.error)) || ''));
 const pwField = (id, label, auto) => '<label class="field"><span>' + label + '</span><div class="pw"><input class="inp" id="' + id + '" type="password" autocomplete="' + auto + '" required><button type="button" data-eye="' + id + '" aria-label="Tampilkan">' + svg('eye') + '</button></div></label>';
 function eyes(root) {
   $$('[data-eye]', root).forEach(b => b.onclick = () => {
@@ -1439,7 +1439,7 @@ function settings() {
 const fmtN = (x, d) => String(+x.toFixed(d)).replace('.', ',');
 const fmtB = b => b >= 1073741824 ? fmtN(b / 1073741824, 2) + ' GB' : b >= 1048576 ? fmtN(b / 1048576, b >= 104857600 ? 0 : 1) + ' MB' : Math.max(0, Math.round(b / 1024)) + ' KB';
 const dbar = (used, cap) => { const p = cap ? Math.min(100, used / cap * 100) : 0; return '<div class="dbar"><i class="' + (p >= 95 ? 'f' : p >= 80 ? 'w' : '') + '" style="width:' + p.toFixed(1) + '%"></i></div>'; };
-// Drive of the Portal (10 GB) split per app: alloc, used by everybody, used by this account.
+// Drive of the Portal: one 10 GB pool for all apps; per-app rows = share of what is used (everybody / this account).
 async function driveUsage(el) {
   const box = $('#drv', el); if (!box) return;
   try {
@@ -1447,7 +1447,8 @@ async function driveUsage(el) {
     box.innerHTML = '<div class="dsum"><div class="rl">' + ri(on ? '#0a84ff' : '#8e8e93', 'cloud') + '<div style="min-width:0"><b>' + fmtB(u.used) + ' dari ' + fmtB(cap) + ' terpakai</b>' +
       '<div class="soft">' + (on ? esc(u.drive.email) + ' · folder "AMATU Portal"' : 'Belum tersambung') + '</div></div></div>' + dbar(u.used, cap) +
       '<div class="soft" style="margin-top:8px">Data kecil (≤ 2 KB) akun ini: ' + fmtB(u.inline) + ' dari ' + fmtB(u.inline_max) + '</div></div>' +
-      (u.apps || []).map(a => '<div class="dapp"><div><span>' + esc(a.name) + '</span><span class="soft">' + fmtB(a.used) + ' / ' + fmtB(a.mb * 1048576) + (a.me ? ' · Anda ' + fmtB(a.me) : '') + '</span></div>' + dbar(a.used, a.mb * 1048576) + '</div>').join('');
+      '<div class="dsum soft" style="font-size:13px">Satu kolam bersama untuk semua aplikasi, tanpa jatah per aplikasi.</div>' +
+      (u.apps || []).filter(a => a.used > 0).map(a => '<div class="dapp"><div><span>' + esc(a.name) + '</span><span class="soft">' + fmtB(a.used) + (a.me ? ' · Anda ' + fmtB(a.me) : '') + '</span></div>' + dbar(a.used, u.used) + '</div>').join('');
   } catch (e) { box.innerHTML = '<div class="dsum soft">' + esc(errText(e)) + '</div>'; }
 }
 function wallBg(w) {

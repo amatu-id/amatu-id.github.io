@@ -13,7 +13,7 @@
   const MAX_ROW = 25000000;     // bigger records stay on this device only
   const BATCH = 3000000;
   const isPortal = location.pathname === PORTAL || location.pathname === '/index.html';
-  const APP = isPortal ? 'portal' : (location.pathname.split('/')[1] || 'portal').toLowerCase();   // repo = Drive folder + quota
+  const APP = isPortal ? 'portal' : (location.pathname.split('/')[1] || 'portal').toLowerCase();   // repo = Drive folder (one shared 10 GB pool)
 
   // ---------- raw storage (never tracked) ----------
   const LS = window.localStorage;
