@@ -386,6 +386,7 @@ const EASE = 'cubic-bezier(.22,.9,.28,1)';
 
 // ---------- glyphs ----------
 const P_ = {
+  slides: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 8.5h6M7 11.5h4M12 16v4M8 20h8"/>',
   doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/>',
   sheet: '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M3.5 14.5h17M9 3.5v17"/>',
   note: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4M8 12h8M8 16h5"/>',
@@ -551,6 +552,11 @@ const ART = {
     '<path d="M35 31h30M50 31v20" stroke="#2563eb" stroke-width="6.5" stroke-linecap="round"/>' +
     '<rect x="34" y="58" width="32" height="3.6" rx="1.8" fill="#c7d2e3"/><rect x="34" y="65" width="32" height="3.6" rx="1.8" fill="#c7d2e3"/><rect x="34" y="72" width="19" height="3.6" rx="1.8" fill="#c7d2e3"/>' +
     '<rect x="55.5" y="70" width="2.4" height="7.6" rx="1.2" fill="#2563eb"/>',
+  presentation: () => bgG('#ffc247', '#ee6a0c') +
+    '<rect x="15" y="21" width="70" height="46" rx="6" fill="#a8430a" opacity=".3" transform="translate(0 2.5)"/><rect x="15" y="21" width="70" height="46" rx="6" fill="#fff"/>' +
+    '<rect x="23" y="30" width="27" height="5" rx="2.5" fill="#ee6a0c"/><rect x="23" y="40" width="19" height="3.6" rx="1.8" fill="#f8b46b"/><rect x="23" y="47" width="23" height="3.6" rx="1.8" fill="#f8b46b"/>' +
+    '<path d="M54 59l9-12 6 7.5 3.5-4.2 6 8.7z" fill="#ee6a0c" opacity=".88"/><circle cx="68" cy="34" r="4.4" fill="#ffc247"/>' +
+    '<path d="M50 67v9M38 84l12-8 12 8" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
   settings: () => '<defs>' + lg('bg', '#d8d8dd', '#8e8e93') + lg('r', '#c7c7cc', '#aeaeb2') + '</defs><rect width="100" height="100" fill="url(#bg)"/>' +
     '<path d="M88.9 47.5L94.0 48.5L94.0 51.5L88.9 52.5L88.6 55.7L93.3 57.7L92.7 60.6L87.6 60.5L86.6 63.6L90.8 66.5L89.6 69.3L84.6 68.1L82.9 70.9L86.5 74.6L84.7 77.1L80.0 74.9L77.9 77.3L80.6 81.7L78.3 83.7L74.2 80.6L71.6 82.5L73.3 87.3L70.7 88.8L67.3 84.9L64.4 86.3L65.0 91.4L62.1 92.3L59.7 87.8L56.5 88.5L56.1 93.6L53.1 93.9L51.6 89.0L48.4 89.0L46.9 93.9L43.9 93.6L43.5 88.5L40.3 87.8L37.9 92.3L35.0 91.4L35.6 86.3L32.7 84.9L29.3 88.8L26.7 87.3L28.4 82.5L25.8 80.6L21.7 83.7L19.4 81.7L22.1 77.3L20.0 74.9L15.3 77.1L13.5 74.6L17.1 70.9L15.4 68.1L10.4 69.3L9.2 66.5L13.4 63.6L12.4 60.5L7.3 60.6L6.7 57.7L11.4 55.7L11.1 52.5L6.0 51.5L6.0 48.5L11.1 47.5L11.4 44.3L6.7 42.3L7.3 39.4L12.4 39.5L13.4 36.4L9.2 33.5L10.4 30.7L15.4 31.9L17.1 29.1L13.5 25.4L15.3 22.9L20.0 25.1L22.1 22.7L19.4 18.3L21.7 16.3L25.8 19.4L28.4 17.5L26.7 12.7L29.3 11.2L32.7 15.1L35.6 13.7L35.0 8.6L37.9 7.7L40.3 12.2L43.5 11.5L43.9 6.4L46.9 6.1L48.4 11.0L51.6 11.0L53.1 6.1L56.1 6.4L56.5 11.5L59.7 12.2L62.1 7.7L65.0 8.6L64.4 13.7L67.3 15.1L70.7 11.2L73.3 12.7L71.6 17.5L74.2 19.4L78.3 16.3L80.6 18.3L77.9 22.7L80.0 25.1L84.7 22.9L86.5 25.4L82.9 29.1L84.6 31.9L89.6 30.7L90.8 33.5L86.6 36.4L87.6 39.5L92.7 39.4L93.3 42.3L88.6 44.3Z" fill="#3a3a3c"/><circle cx="50" cy="50" r="35" fill="url(#r)"/><circle cx="50" cy="50" r="30.5" fill="#4a4a4e"/>' +
     '<path d="M47.5 21h5v58h-5zM24.9 63.8l2.5 4.3 50.2-29-2.5-4.3zM27.4 31.9l-2.5 4.3 50.2 29 2.5-4.3z" fill="url(#r)"/>' +
@@ -559,7 +565,7 @@ const ART = {
 // colour behind the zoom-open animation (roughly the icon's own background)
 const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', corel: '#4cba57',
   photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
-  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', settings: '#b4b4ba' };
+  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', presentation: '#f58a1f', settings: '#b4b4ba' };
 const artCache = {};
 function artSrc(id) {
   const k = id === 'planner' ? id + new Date().toDateString() : id;
@@ -570,6 +576,7 @@ function artSrc(id) {
 const APPS = [
   { id: 'docs', name: 'Amatu Docs', icon: 'doc', c: 0, d: 'Dokumen gaya Google Docs + Word' },
   { id: 'spreadsheet', name: 'Amatu Sheets', icon: 'sheet', c: 1, d: 'Spreadsheet dengan rumus' },
+  { id: 'presentation', name: 'Amatu Slides', icon: 'slides', c: 9, d: 'Presentasi gaya Google Slides + PowerPoint' },
   { id: 'notes', name: 'Notes', icon: 'note', c: 2, d: 'Catatan, checklist, kategori' },
   { id: 'saku', name: 'Saku', icon: 'wallet', c: 3, d: 'Keuangan pribadi' },
   { id: 'sketchup', name: 'Amatu Sketch', icon: 'cube', c: 4, d: 'Model 3D gaya SketchUp' },
