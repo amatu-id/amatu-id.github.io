@@ -248,6 +248,8 @@ html[data-nolabel] .page .lb{display:none}
 /* zoom open / close */
 .zoom{position:fixed;inset:0;z-index:95;pointer-events:none}
 .zoom .zi{position:absolute;margin:0}
+html.vt-back::view-transition-old(root){animation:none;transform-origin:0 0;z-index:2;mix-blend-mode:normal}
+html.vt-back::view-transition-new(root){animation:none;mix-blend-mode:normal}
 
 /* quick actions (long press) */
 .qa{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);animation:fade .22s}
@@ -320,7 +322,7 @@ button.row:active{background:color-mix(in srgb,var(--fg) 8%,transparent)}
 .acct .av{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:24px;color:#fff;background:linear-gradient(145deg,#64d2ff,#0a84ff);flex:none}
 .acct b{font-size:19px;font-weight:600}.acct .soft{font-size:13.5px}
 .opts{display:inline-flex;background:var(--field);border-radius:9px;padding:2px;flex-wrap:wrap}
-.opt{border:0;background:none;border-radius:7px;padding:5px 11px;cursor:pointer;font-size:13px;font-weight:500;color:var(--fg)}
+.opt{border:0;background:none;border-radius:7px;padding:5px 11px;cursor:pointer;font-size:13px;font-weight:500;color:var(--fg);white-space:nowrap}
 .opt.on{background:var(--cell);box-shadow:0 3px 8px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04);font-weight:600}
 html[data-mode=dark] .opt.on{background:#636366}
 .walls{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:4px 14px 14px}
@@ -358,6 +360,7 @@ html[data-mode=dark] .opt.on{background:#636366}
   body.sheeted .home{transform:scale(.93) translateY(10px);border-radius:16px;overflow:hidden;filter:brightness(.82)}
   .pad{grid-template-columns:repeat(3,76px);gap:14px 24px}.pad button{width:76px;height:76px}
   .walls{gap:7px;padding:4px 12px 12px}
+  .opts.wide{display:grid;grid-auto-flow:column;grid-auto-columns:auto;width:100%}.opts.wide .opt{padding:6px 4px;font-size:12.5px}
   .sp-g{grid-template-columns:repeat(4,1fr)}
   .sp-g .tile{--ic:54px}
 }
@@ -809,7 +812,7 @@ function loading(text) {
   app.innerHTML = '<div class="lock"><div class="lk-load"><div class="spin"></div><div id="lt">' + esc(text) + '</div></div></div>';
 }
 async function openAccount(u) {
-  keyHandler = null;
+  keyHandler = null; A.lset('pt.haspin', u);
   loading('Membuka akun…');
   try {
     await A.enter(u, t => { const l = $('#lt'); if (l) l.textContent = t + '…'; });
@@ -821,18 +824,18 @@ async function openAccount(u) {
   P = load(); theme();
   const n = nextUrl();
   if (n) { location.replace(n); return; }
-  home();
+  home(true);
 }
 
 // ---------- home (springboard) ----------
 let editing = false, homeTimers = [], use = null, opening = false;
 function stopHome() { homeTimers.forEach(clearInterval); homeTimers = []; document.body.classList.remove('editing', 'sheeted'); editing = false; closeQA(true); closeSpot(true); }
-function home() {
+function home(intro) {
   stopHome(); keyHandler = homeKeys;
   const s = A.sess();
   if (history.replaceState && location.search) history.replaceState(null, '', '/');
   const back = takeOpen();
-  app.innerHTML = '<div class="home' + (back || RM ? '' : ' intro') + '">' +
+  app.innerHTML = '<div class="home' + (back || RM || !intro ? '' : ' intro') + '">' +
     '<header class="sbar"><div class="sl"><b id="sbt"></b><span id="sbd"></span></div>' +
     '<div class="sr"><span class="sync" id="sync" title="Sinkron"></span><span id="net"></span><span id="bat"></span>' +
     '<button class="avbtn" id="me" title="' + esc(s.u) + '">' + esc(s.u[0].toUpperCase()) + '</button></div></header>' +
@@ -867,8 +870,8 @@ function home() {
   homeTimers.push(setInterval(() => { if (!A.unlocked()) lockNow(); }, 15000));
   A.pull().then(r => r.changed && refresh()).catch(() => { });
   loadStat(); paintBat(); paintNet();
-  if (back) zoomClose(back.id);
-  else setTimeout(() => { const h = $('.home'); h && h.classList.remove('intro'); }, 1100);
+  if (back) closeBack(back.id);
+  else if (intro) setTimeout(() => { const h = $('.home'); h && h.classList.remove('intro'); }, 1100);
 }
 function homeKeys(e) {
   if ($('#qa')) { if (e.key === 'Escape') closeQA(); return; }
@@ -999,20 +1002,22 @@ function goPage(i, smooth = true) {
   g.scrollTo({ left: i * g.clientWidth, behavior: smooth && !RM ? 'smooth' : 'auto' });
 }
 function markDots() { const c = curPage(); $$('#pdots .pd').forEach((d, i) => d.classList.toggle('on', i === c)); }
+// same markup as last time (sync refresh, storage event, tab broadcast): keep the nodes, so nothing blinks
+function setHtml(el, h) { if (el._h !== h || el.childElementCount !== el._n) { el.innerHTML = h; el._h = h; el._n = el.childElementCount; } }
 function renderTiles() {
   const g = $('#grid'); if (!g) return;
   const m = items(), cur = curPage(), ids = visible();
   const pages = [ids.slice(0, L.first)];
   for (let i = L.first; i < ids.length; i += L.per) pages.push(ids.slice(i, i + L.per));
-  g.innerHTML = pages.map((p, pi) => '<section class="page">' + (pi ? '' : L.ws.map(widgetHtml).join('')) + p.map(id => tileHtml(m[id], 'grid')).join('') + '</section>').join('');
+  setHtml(g, pages.map((p, pi) => '<section class="page">' + (pi ? '' : L.ws.map(widgetHtml).join('')) + p.map(id => tileHtml(m[id], 'grid')).join('') + '</section>').join(''));
   if ($('.home.intro')) $$('.page:first-child > *', g).forEach((el, i) => el.style.setProperty('--d', Math.min(i * 18, 360) + 'ms'));
   g.scrollLeft = Math.min(cur, pages.length - 1) * g.clientWidth;
   const dock = (P.dock || []).filter(id => m[id] && (id === 'settings' || !P.hidden.includes(id)));
-  $('#dock').innerHTML = dock.length ? dock.map(id => tileHtml(m[id], 'dock')).join('') : '<span class="empty">Seret ikon ke sini</span>';
+  setHtml($('#dock'), dock.length ? dock.map(id => tileHtml(m[id], 'dock')).join('') : '<span class="empty">Seret ikon ke sini</span>');
   const rec = L.phone ? [] : (P.recent || []).map(r => r.id).filter((id, i, a) => m[id] && a.indexOf(id) === i && id !== 'settings' && !dock.includes(id) && !P.hidden.includes(id)).slice(0, 3);
-  $('#recents').innerHTML = rec.map(id => tileHtml(m[id], 'recents')).join('');
+  setHtml($('#recents'), rec.map(id => tileHtml(m[id], 'recents')).join(''));
   $('.dsep').hidden = !rec.length;
-  $('#pdots').innerHTML = pages.length > 1 ? pages.map((_, i) => '<button class="pd" data-pg="' + i + '" aria-label="Halaman ' + (i + 1) + '"></button>').join('') : '';
+  setHtml($('#pdots'), pages.length > 1 ? pages.map((_, i) => '<button class="pd" data-pg="' + i + '" aria-label="Halaman ' + (i + 1) + '"></button>').join('') : '');
   $('#pill').classList.toggle('multi', pages.length > 1);
   markDots(); tick(); syncDot();
 }
@@ -1073,22 +1078,51 @@ function zoomOpen(it, from) {
   home && home.animate([{ transform: 'none', opacity: 1 }, { transform: 'scale(1.16)', opacity: 0 }], o);
   return lay.animate([{ clipPath: f.clip[0] }, { clipPath: f.clip[1] }], o).finished.catch(() => { });
 }
-function zoomClose(id) {
-  const it = items()[id]; if (!it || RM) return;
+function iconFor(id) {
   let ic = findIc(id);
   if (!ic) {   // the icon sits on another page: show that page first
     const t = $('#grid .tile[data-id="' + CSS.escape(id) + '"]');
     if (t) { goPage($$('#grid .page').indexOf(t.parentElement), false); ic = findIc(id); }
   }
-  const r = iconRect(ic), f = zoomFrames(r), home = $('.home'), o = { duration: 460, easing: EASE, fill: 'forwards' };
+  return ic;
+}
+// fallback close (no view transition): the icon colour grows in while it shrinks, never a solid full-screen frame
+function zoomClose(id) {
+  const it = items()[id]; if (!it || RM) return;
+  const ic = iconFor(id), r = iconRect(ic), f = zoomFrames(r), home = $('.home'), o = { duration: 440, easing: EASE, fill: 'forwards' };
   const lay = zoomLayer(it, r);
   if (ic) ic.style.visibility = 'hidden';
   lay.firstElementChild.animate([{ transform: f.icon[1], opacity: 0 }, { transform: f.icon[0], opacity: 1 }], o);
-  const h = home && home.animate([{ transform: 'scale(1.14)', opacity: 0 }, { transform: 'none', opacity: 1 }], o);
-  lay.animate([{ clipPath: f.clip[1] }, { clipPath: f.clip[0] }], o).finished.catch(() => { }).finally(() => {
+  const h = home && home.animate([{ transform: 'scale(1.1)', opacity: .5 }, { transform: 'none', opacity: 1 }], o);
+  lay.animate([{ clipPath: f.clip[1], opacity: 0 }, { opacity: .9, offset: .4 }, { clipPath: f.clip[0], opacity: 1 }], o).finished.catch(() => { }).finally(() => {
     lay.remove(); if (ic) ic.style.visibility = ''; h && h.cancel();
   });
 }
+// with a cross-document view transition the real app picture shrinks into its icon (iOS style)
+function appShrink(id, vt) {
+  const ic = iconFor(id), r = iconRect(ic), W = innerWidth, H = innerHeight, side = Math.min(W, H), k = r.width / side;
+  const tx = r.left + r.width / 2 - k * W / 2, ty = r.top + r.height / 2 - k * H / 2, ix = (W - side) / 2, iy = (H - side) / 2;
+  const R = document.documentElement, home = $('.home'), o = { duration: 480, easing: EASE, fill: 'forwards' };
+  R.classList.add('vt-back');
+  const h = home && home.animate([{ transform: 'scale(1.1)', opacity: .4 }, { transform: 'none', opacity: 1 }], o);
+  vt.ready.then(() => R.animate([
+    { transform: 'none', clipPath: 'inset(0px 0px round 0px)', opacity: 1 },
+    { opacity: 1, offset: .55 },
+    { transform: 'translate(' + tx + 'px,' + ty + 'px) scale(' + k + ')', clipPath: 'inset(' + iy + 'px ' + ix + 'px round ' + side * .23 + 'px)', opacity: 0 }
+  ], { ...o, pseudoElement: '::view-transition-old(root)' })).catch(() => { });
+  vt.finished.catch(() => { }).finally(() => { R.classList.remove('vt-back'); h && h.cancel(); });
+}
+// returning from an app: pagereveal (fired before the first frame) decides between the two
+let backId = null;
+function closeBack(id) {
+  backId = id;
+  requestAnimationFrame(() => { if (backId) { const i = backId; backId = null; zoomClose(i); } });
+}
+addEventListener('pagereveal', e => {
+  if (!backId || !e.viewTransition || RM || !$('#grid')) return;
+  const id = backId; backId = null;
+  appShrink(id, e.viewTransition);
+});
 // back/forward cache: the page comes back exactly as it left (zoomed in), so play the close instead
 addEventListener('pageshow', e => {
   if (!e.persisted) return;
@@ -1099,7 +1133,7 @@ addEventListener('pageshow', e => {
   if (!$('#grid')) return;
   if (!A.unlocked()) { takeOpen(); return lockNow(); }
   P = load(); theme(); relayout();
-  const o = takeOpen(); if (o) zoomClose(o.id);
+  const o = takeOpen(); if (o) closeBack(o.id);
 });
 
 // ---------- tap / long press (quick actions) / drag ----------
@@ -1278,6 +1312,7 @@ function endDrag(e) {
   const d = drag; drag = null;
   clearTimeout(d.edgeT);
   d.ghost.remove(); d.tile.classList.remove('src'); $('#dockbar').classList.remove('hot'); $('.home')?.classList.remove('drag');
+  ['#grid', '#dock', '#recents'].forEach(q => { const el = $(q); if (el) el._h = null; });   // the drag moved nodes: rebuild
   if (!e) return renderTiles();
   if (d.from === 'grid' && d.over === 'dock') {
     if (!P.dock.includes(d.id)) { if (P.dock.length >= 7) toast('Dock maksimal 7 ikon.'); else P.dock.push(d.id); }
@@ -1397,7 +1432,7 @@ function linkEditor() {
 }
 
 // ---------- settings (iOS grouped list) ----------
-const opts = (key, list) => '<div class="opts" data-k="' + key + '">' + list.map(([v, l]) => '<button class="opt' + (String(P[key]) === String(v) ? ' on' : '') + '" data-v="' + v + '">' + l + '</button>').join('') + '</div>';
+const opts = (key, list) => '<div class="opts' + (list.length > 4 ? ' wide' : '') + '" data-k="' + key + '">' + list.map(([v, l]) => '<button class="opt' + (String(P[key]) === String(v) ? ' on' : '') + '" data-v="' + v + '">' + l + '</button>').join('') + '</div>';
 const ri = (c, n) => '<span class="ri" style="background:' + c + '">' + svg(n, 2.1) + '</span>';
 const row = (ic, label, right) => '<div class="row"><span class="rl">' + ic + '<span>' + label + '</span></span>' + right + '</div>';
 const brow = (id, ic, label, extra) => '<button class="row" id="' + id + '"><span class="rl">' + ic + '<span>' + label + '</span></span><span class="chev">' + (extra || '') + svg('chev', 2.4) + '</span></button>';
@@ -1415,7 +1450,7 @@ function settings() {
     '<div class="sec"><h3>Layar Utama</h3><div class="grp">' +
     brow('ehome', ri('#34c759', 'edit'), 'Edit Layar Utama') + brow('addl', ri('#007aff', 'link'), 'Tambah Pintasan') + brow('reset', ri('#8e8e93', 'refresh'), 'Atur Ulang Tata Letak') + '</div></div>' +
     '<div class="sec"><h3>Keamanan</h3><div class="grp">' +
-    row(ri('#ff3b30', 'lock'), 'Kunci otomatis', opts('idle', [[5, '5 mnt'], [15, '15 mnt'], [30, '30 mnt'], [60, '1 jam']])) +
+    row(ri('#ff3b30', 'lock'), 'Kunci otomatis', opts('idle', [[5, '5 mnt'], [15, '15 mnt'], [30, '30 mnt'], [60, '1 jam'], [0, 'Tidak pernah']])) +
     brow('cpin', ri('#ff9500', 'key'), 'Ganti PIN') + brow('cpass', ri('#8e8e93', 'key'), 'Ganti Password') + brow('lk', ri('#5856d6', 'lock'), 'Kunci Sekarang') + '</div></div>' +
     (hidden.length ? '<div class="sec"><h3>Disembunyikan</h3><div class="grp">' + hidden.map(id => '<div class="row"><span class="rl">' + icon(m[id], '--ic:30px') + '<span>' + esc(m[id].name) + '</span></span><button class="tbtn" style="font-size:15px" data-show="' + esc(id) + '">Tampilkan</button></div>').join('') + '</div></div>' : '') +
     '<div class="sec"><h3>Sinkronisasi</h3><div class="grp">' + brow('syn', ri('#34c759', 'refresh'), '<span id="syt" class="mut" style="font-size:14px">…</span>', 'Sinkron') + '</div></div>' +
@@ -1542,13 +1577,16 @@ async function boot() {
     const n = nextUrl(); if (n) { location.replace(n); return; }
     A.rtStart(); return home();
   }
+  const knew = A.lget('pt.haspin') === s.u;
+  if (knew) pinView('enter');
   try {
     const st = await A.rpc('amt_status', { p_token: s.t });
-    pinView(st.has_pin ? 'enter' : 'create');
+    if (st.has_pin) A.lset('pt.haspin', s.u); else A.ldel('pt.haspin');
+    if (!knew || !st.has_pin) pinView(st.has_pin ? 'enter' : 'create');
   } catch (e) {
-    if (e.code === 'auth') { A.ldel('pt.sess'); return gate(); }
-    pinView('enter');
-    setTimeout(() => { const er = $('#err'); if (er) er.textContent = errText(e); }, 0);
+    if (e.code === 'auth') { A.ldel('pt.sess'); A.ldel('pt.haspin'); return gate(); }
+    if (!knew) pinView('enter');
+    setTimeout(() => { const er = $('#err'); if (er && !er.textContent) er.textContent = errText(e); }, 0);
   }
 }
 boot();
