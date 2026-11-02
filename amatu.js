@@ -595,12 +595,31 @@
       if (over(slk)) setZ(z0); else run();
     }
     function run() { try { fit(); } finally { mo && mo.takeRecords(); } }
-    const soon = (f, ms) => { clearTimeout(t); t = setTimeout(() => { try { f(); } finally { mo && mo.takeRecords(); } }, ms); };
+    // Never re-zoom while someone is typing: a zoom change re-lays out and repaints the whole page (canvases are
+    // cleared and redrawn, glass panels re-blurred), which shows up as a flicker on every pause between keystrokes.
+    let typedAt = 0;
+    const editable = n => { const el = n && (n.nodeType === 1 ? n : n.parentElement); return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)); };
+    const busy = () => Date.now() - typedAt < 1500 || editable(document.activeElement) && innerWidth < 1100;
+    const soon = (f, ms) => {
+      clearTimeout(t);
+      t = setTimeout(function go() {
+        if (busy()) { t = setTimeout(go, 700); return; }
+        try { f(); } finally { mo && mo.takeRecords(); }
+      }, ms);
+    };
     function start() {
       run();
-      mo = new MutationObserver(() => soon(check, 250));
+      addEventListener('keydown', () => { typedAt = Date.now(); }, true);
+      addEventListener('compositionupdate', () => { typedAt = Date.now(); }, true);
+      // edits inside the document being written (contenteditable / text fields) don't change the app's frame
+      mo = new MutationObserver(recs => { if (recs.some(r => !editable(r.target))) soon(check, 250); });
       mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open'] });
-      addEventListener('resize', () => soon(run, 120));
+      let lastW = innerWidth;
+      addEventListener('resize', () => {
+        // on-screen keyboard opening/closing (height only, while a field has focus) is not a new layout
+        if (innerWidth === lastW && editable(document.activeElement)) return;
+        lastW = innerWidth; soon(run, 120);
+      });
       addEventListener('hashchange', () => soon(run, 60));
       addEventListener('popstate', () => soon(run, 60));
       addEventListener('load', () => soon(run, 30));
