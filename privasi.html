@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privasi Portal AMATU</title>
+<style>
+:root { --bg: #eef2f7; --ink: #0d1520; --ink2: #4a5668; --card: #fff; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #070b12; --ink: #eef3fa; --ink2: #a8b3c4; --card: #121a28; color-scheme: dark; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 32px 16px 48px; }
+section { background: var(--card); border-radius: 16px; padding: 4px 20px 12px; margin-top: 16px; }
+h1 { font-size: 26px; margin: 0; }
+h2 { font-size: 18px; margin: 18px 0 6px; }
+p, li { color: var(--ink2); }
+a { color: #0a84ff; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kebijakan Privasi Portal AMATU</h1>
+  <p>Berlaku untuk <a href="/">amatu-id.github.io</a> dan semua aplikasi di dalamnya. Diperbarui 2 November 2026.</p>
+  <section>
+    <h2>Data yang disimpan</h2>
+    <ul>
+      <li>Akun AMATU (nama pengguna, kata sandi dan PIN dalam bentuk hash) disimpan di server Portal AMATU (Supabase).</li>
+      <li>Data aplikasi Anda (dokumen, catatan, gambar, pengaturan) disinkronkan per akun agar sama di semua perangkat. Data kecil disimpan di Supabase, data yang lebih besar disimpan sebagai file di Google Drive milik pengelola Portal AMATU.</li>
+    </ul>
+    <h2>Google Drive</h2>
+    <ul>
+      <li>Portal AMATU memakai izin <b>drive.file</b> pada akun Google pengelola (amatusapa25@gmail.com): hanya file yang dibuat Portal AMATU sendiri di folder "AMATU Portal". File Drive lain tidak bisa dilihat.</li>
+      <li>Alamat email akun Google dibaca hanya untuk memastikan akun yang tersambung benar.</li>
+      <li>Token Google disimpan terenkripsi di server Portal AMATU dan hanya dipakai untuk menyimpan, membaca dan menghapus data sinkron. Data tidak dijual atau dibagikan ke pihak lain.</li>
+      <li>Akses dapat dicabut kapan saja di <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+    </ul>
+    <h2>Kontak</h2>
+    <p>amatusapa25@gmail.com</p>
+  </section>
+</main>
+</body>
+</html>
