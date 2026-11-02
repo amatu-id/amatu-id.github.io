@@ -617,5 +617,11 @@
     pending, synced: () => +(lget('pt.synced') || 0), big: () => jget('pt.big', {}), cur, rtStart, rtStop,
     on: f => listeners.push(f), jget, jset, lget, lset, ldel
   };
-  if (!isPortal) appGuard();
+  // Docs / Sheets share links (?share=<key>) open for anyone who has the link, without the portal sign-in.
+  const shareGuest = !isPortal && /[?&]share=[\w-]{20,}/.test(location.search);
+  window.AMATU.guest = () => shareGuest && !unlocked();
+  if (!isPortal) {
+    if (window.AMATU.guest()) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fitInit); else fitInit(); }
+    else appGuard();
+  }
 })();
