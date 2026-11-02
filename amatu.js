@@ -1,6 +1,7 @@
 /* Amatu — session, PIN guard and per-account sync shared by the portal and every app on amatu-id.github.io.
    Apps load it as the first script in <head>. It records every localStorage / IndexedDB write of the app,
-   pushes the changes to the signed-in account (Supabase amt_* RPCs) and pulls other devices' changes. */
+   pushes the changes to the signed-in account and pulls other devices' changes. Values over 2 KB are stored as files
+   in the Portal's Google Drive (Edge Function amatu-drive, 10 GB shared by the apps); Supabase keeps the index. */
 (function () {
   'use strict';
   if (window.AMATU) return;
@@ -8,9 +9,11 @@
   const SB_URL = 'https://ieyqxmzztoxgpvwexbkj.supabase.co';
   const SB_KEY = 'sb_publishable_o-PQxhkJJ8FG4mHYTUqEBw_uXv9n-eG';
   const PORTAL = '/';
-  const MAX_ROW = 4800000;      // bigger records stay on this device only
+  const DRIVE_FN = SB_URL + '/functions/v1/amatu-drive/';
+  const MAX_ROW = 25000000;     // bigger records stay on this device only
   const BATCH = 3000000;
   const isPortal = location.pathname === PORTAL || location.pathname === '/index.html';
+  const APP = isPortal ? 'portal' : (location.pathname.split('/')[1] || 'portal').toLowerCase();   // repo = Drive folder + quota
 
   // ---------- raw storage (never tracked) ----------
   const LS = window.localStorage;
@@ -55,6 +58,12 @@
     return j;
   }
   const tok = () => { const s = sess(); return s && s.t; };
+  async function drive(route, body) {
+    const r = await fetch(DRIVE_FN + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+    let j = null; try { j = await r.json(); } catch { }
+    if (!r.ok) { const e = new Error((j && j.error) || ('HTTP ' + r.status)); e.code = (j && j.error) || 'net'; throw e; }
+    return j;
+  }
 
   // ---------- value encoding (structured-clone values → JSON) ----------
   const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
@@ -248,7 +257,7 @@
       const part = []; let size = 0;
       while (i < rows.length && (!part.length || size + (rows[i].v || '').length < BATCH)) { size += (rows[i].v || '').length + rows[i].k.length; part.push(rows[i++]); }
       const before = cur();
-      const r = await rpc('amt_push', { p_token: t, p_rows: part, p_after: before, p_dev: DEV });
+      const r = await drive('push', { t, rows: part, after: before, dev: DEV, app: APP });
       if (r && !r.gap && cur() === before && r.last) setCur(r.last);
       pushed += part.length;
     }
@@ -266,8 +275,13 @@
     const t = tok(); if (!t || !tracking()) return { changed: 0 };
     let changed = 0, more = true, guard = 0;
     while (more && guard++ < 500) {
-      const r = await rpc('amt_pull', { p_token: t, p_after: cur() });
-      changed += await apply(r.rows || []);
+      const r = await rpc('amt_pull2', { p_token: t, p_after: cur() });
+      const rows = r.rows || [], ids = rows.filter(x => x.g && x.o !== DEV).map(x => x.g);
+      if (ids.length) {          // values kept in Google Drive
+        const got = await drive('get', { t, ids });
+        for (const x of rows) if (x.g && x.o !== DEV) x.v = got.v[x.g];
+      }
+      changed += await apply(rows.filter(x => x.d || x.o === DEV || x.v != null));
       if (r.last) setCur(r.last);
       more = !!r.more;
     }
@@ -589,7 +603,7 @@
   }
 
   window.AMATU = {
-    SB_URL, SB_KEY, DEV, rpc, sess, setSess: s => jset('pt.sess', s), owner, unlocked, touch, lock, enter, leave, flush, pull,
+    SB_URL, SB_KEY, DEV, APP, rpc, drive, usage: () => rpc('amt_usage', { p_token: tok() }), sess, setSess: s => jset('pt.sess', s), owner, unlocked, touch, lock, enter, leave, flush, pull,
     pending, synced: () => +(lget('pt.synced') || 0), big: () => jget('pt.big', {}), cur, rtStart, rtStop,
     on: f => listeners.push(f), jget, jset, lget, lset, ldel
   };
