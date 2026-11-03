@@ -419,6 +419,7 @@ const P_ = {
   text: '<path d="M4 7V5h16v2M12 5v14M9 19h6"/>',
   game: '<rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7.5 10.5v4M5.5 12.5h4M15.5 11.5h.01M18 13.5h.01"/>',
   download: '<path d="M12 3.5v11m-4.5-4.5 4.5 4.5 4.5-4.5M5 20h14"/>',
+  enhance: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M12 7.5l1.3 3.2 3.2 1.3-3.2 1.3L12 16.5l-1.3-3.2L7.5 12l3.2-1.3z"/>',
   cutout: '<circle cx="12" cy="7.5" r="3.6"/><path d="M5 20.5c.5-4.4 3.3-7 7-7s6.5 2.6 7 7"/><path d="M3 3h3M18 3h3M3 3v3M21 3v3" />',
   collage: '<rect x="3" y="3" width="10" height="18" rx="2"/><rect x="15" y="3" width="6" height="8" rx="1.5"/><rect x="15" y="13" width="6" height="8" rx="1.5"/>',
   brush: '<path d="M18.4 3.6a2 2 0 0 1 2.8 2.8L12 15.6 8.4 12z"/><path d="M8.4 12c-2.3 0-3.9 1.6-3.9 3.9 0 1.6-.8 2.7-2 3.3 1.3 1.2 3.2 1.8 5 1.8 3.1 0 4.8-2.3 4.4-5.4"/>',
@@ -591,6 +592,14 @@ const ART = {
     '<g clip-path="url(#cc)" fill="#dbe3ee">' + (() => { let q = ''; for (let y = 0; y < 9; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) q += '<rect x="' + (18 + x * 8) + '" y="' + (15 + y * 8) + '" width="8" height="8"/>'; return q; })() + '</g>' +
     '<g clip-path="url(#cc)"><path d="M50 27.5a11.5 11.5 0 1 1 0 23 11.5 11.5 0 0 1 0-23zM26 88c1-17 10.5-28 24-28s23 11 24 28z" fill="#0f2557" stroke="#fff" stroke-width="4.5" stroke-linejoin="round" paint-order="stroke"/></g>' +
     '<path d="M74 9l2.6 6.4L83 18l-6.4 2.6L74 27l-2.6-6.4L65 18l6.4-2.6z" fill="#ffd23f" stroke="#1d5fe0" stroke-width="1.2" stroke-linejoin="round"/>',
+  enhance: () => bgG('#ffc53d', '#f43f5e') +
+    '<defs><clipPath id="ec"><rect x="14" y="22" width="72" height="58" rx="7"/></clipPath></defs>' +
+    '<rect x="14" y="22" width="72" height="58" rx="7" fill="#8f1d2c" opacity=".3" transform="translate(0 2.5)"/>' +
+    '<g clip-path="url(#ec)"><rect x="14" y="22" width="72" height="58" fill="#7dd3fc"/><circle cx="70" cy="36" r="6.5" fill="#fff6c9"/>' +
+    '<path d="M14 66l17-20 12 12 10-9 16 15 17-13v29H14z" fill="#0f766e"/><path d="M14 72c14-7 30-8 44-4s20 2 28-1v13H14z" fill="#22c55e"/>' +
+    (() => { const C = ['#9bd8f2', '#86c9e6', '#6fb5c9', '#5a9e8f', '#3f8a6e', '#2f7d59']; let q = ''; for (let y = 0; y < 6; y++) for (let x = 0; x < 4; x++) q += '<rect x="' + (14 + x * 9) + '" y="' + (22 + y * 9.7) + '" width="9" height="9.8" fill="' + C[Math.min(5, y + ((x + y) % 2))] + '"/>'; return q; })() + '</g>' +
+    '<path d="M50 22v58" stroke="#fff" stroke-width="2.6"/><circle cx="50" cy="51" r="7.5" fill="#fff"/><path d="M46.5 51h7M46.5 51l2-2M46.5 51l2 2M53.5 51l-2-2M53.5 51l-2 2" stroke="#f43f5e" stroke-width="1.6" stroke-linecap="round"/>' +
+    '<rect x="58" y="9" width="28" height="15" rx="7.5" fill="#7a1022" opacity=".3" transform="translate(0 1.5)"/><rect x="58" y="9" width="28" height="15" rx="7.5" fill="#fff"/><text x="72" y="20.5" text-anchor="middle" font-family="' + FONT + '" font-size="11" font-weight="900" fill="#f43f5e">4K</text>',
   playlist: () => bgG('#3ef0a8', '#0b6f78') +
     '<circle cx="50" cy="43" r="30" fill="#033b3f" opacity=".32" transform="translate(0 2.5)"/><circle cx="50" cy="43" r="30" fill="#111827"/>' +
     '<circle cx="50" cy="43" r="23" fill="none" stroke="#2c3646" stroke-width="1.6"/><circle cx="50" cy="43" r="16.5" fill="none" stroke="#2c3646" stroke-width="1.6"/>' +
@@ -606,7 +615,7 @@ const ART = {
 // colour behind the zoom-open animation (roughly the icon's own background)
 const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', corel: '#4cba57',
   photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
-  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', presentation: '#f58a1f', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', playlist: '#15a98c', settings: '#b4b4ba' };
+  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', presentation: '#f58a1f', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', playlist: '#15a98c', settings: '#b4b4ba' };
 const artCache = {};
 function artSrc(id) {
   const k = id === 'planner' ? id + new Date().toDateString() : id;
@@ -642,6 +651,7 @@ const APPS = [
   { id: 'games', name: 'Amatu Games', icon: 'game', c: 5, d: 'Game seru untuk menghafal kosakata bahasa Inggris' },
   { id: 'downloader', name: 'Downloader', icon: 'download', c: 17, d: 'Tempel link YouTube, simpan jadi MP4/MP3 dengan pilihan kualitas' },
   { id: 'background', name: 'Hapus BG', icon: 'cutout', c: 16, d: 'Hapus latar foto dengan AI: tepi detail, outline stiker, pas foto, PNG/JPG/PDF' },
+  { id: 'enhance', name: 'Enhance HD', icon: 'enhance', c: 9, d: 'Tingkatkan kualitas & resolusi foto hingga 4K/8K dengan AI: detail wajah, alis, rambut, warna' },
   { id: 'playlist', name: 'Amatu Playlist', icon: 'music', c: 1, d: 'Putar lagu YouTube & Spotify: playlist Pop Indonesia, Pop Jazz, hits, radio, lirik & EQ' }
 ];
 const COLORS = [
@@ -653,7 +663,7 @@ const COLORS = [
 ];
 const grad = i => { const c = COLORS[i] || COLORS[14]; return 'linear-gradient(160deg,' + c[0] + ',' + c[1] + ')'; };
 const ICON_CHOICES = ['doc', 'sheet', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
-  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout'];
+  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance'];
 const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'], ['grafit', 'Grafit'], ['polos', 'Polos']];
 
 // ---------- per-account portal settings (synced like every other key) ----------
