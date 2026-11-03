@@ -417,6 +417,7 @@ const P_ = {
   receipt: '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/>',
   scan: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M3.5 12h17"/>',
   text: '<path d="M4 7V5h16v2M12 5v14M9 19h6"/>',
+  collage: '<rect x="3" y="3" width="10" height="18" rx="2"/><rect x="15" y="3" width="6" height="8" rx="1.5"/><rect x="15" y="13" width="6" height="8" rx="1.5"/>',
   brush: '<path d="M18.4 3.6a2 2 0 0 1 2.8 2.8L12 15.6 8.4 12z"/><path d="M8.4 12c-2.3 0-3.9 1.6-3.9 3.9 0 1.6-.8 2.7-2 3.3 1.3 1.2 3.2 1.8 5 1.8 3.1 0 4.8-2.3 4.4-5.4"/>',
   cart: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3h3l2.4 12h11l2-8H6.6"/>',
   lang: '<path d="M3 5h9M7.5 3v2M5 5c.6 3.2 2.6 5.8 6 7.5M10 5c-.8 3.4-3 6-6.5 7.8"/><path d="m12 21 4.5-10 4.5 10M13.6 17.5h5.8"/>',
@@ -566,6 +567,10 @@ const ART = {
     '<rect x="23" y="30" width="27" height="5" rx="2.5" fill="#ee6a0c"/><rect x="23" y="40" width="19" height="3.6" rx="1.8" fill="#f8b46b"/><rect x="23" y="47" width="23" height="3.6" rx="1.8" fill="#f8b46b"/>' +
     '<path d="M54 59l9-12 6 7.5 3.5-4.2 6 8.7z" fill="#ee6a0c" opacity=".88"/><circle cx="68" cy="34" r="4.4" fill="#ffc247"/>' +
     '<path d="M50 67v9M38 84l12-8 12 8" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+  collage: () => bgG('#b18cff', '#6d28d9') +
+    '<g transform="rotate(-6 50 52)"><rect x="24" y="15" width="52" height="71" rx="5" fill="#3b0f8c" opacity=".3" transform="translate(0 2.5)"/><rect x="24" y="15" width="52" height="71" rx="5" fill="#fff"/>' +
+    '<rect x="28.5" y="19.5" width="43" height="28" rx="2" fill="#38bdf8"/><circle cx="62" cy="27.5" r="4" fill="#fff6c9"/><path d="M28.5 47.5V40.5l9-8 8 7 6-4 20 12z" fill="#0369a1" opacity=".8"/>' +
+    '<rect x="28.5" y="50.5" width="20" height="31" rx="2" fill="#fb7185"/><rect x="51.5" y="50.5" width="20" height="14" rx="2" fill="#fbbf24"/><rect x="51.5" y="67.5" width="20" height="14" rx="2" fill="#34d399"/></g>',
   settings: () => '<defs>' + lg('bg', '#d8d8dd', '#8e8e93') + lg('r', '#c7c7cc', '#aeaeb2') + '</defs><rect width="100" height="100" fill="url(#bg)"/>' +
     '<path d="M88.9 47.5L94.0 48.5L94.0 51.5L88.9 52.5L88.6 55.7L93.3 57.7L92.7 60.6L87.6 60.5L86.6 63.6L90.8 66.5L89.6 69.3L84.6 68.1L82.9 70.9L86.5 74.6L84.7 77.1L80.0 74.9L77.9 77.3L80.6 81.7L78.3 83.7L74.2 80.6L71.6 82.5L73.3 87.3L70.7 88.8L67.3 84.9L64.4 86.3L65.0 91.4L62.1 92.3L59.7 87.8L56.5 88.5L56.1 93.6L53.1 93.9L51.6 89.0L48.4 89.0L46.9 93.9L43.9 93.6L43.5 88.5L40.3 87.8L37.9 92.3L35.0 91.4L35.6 86.3L32.7 84.9L29.3 88.8L26.7 87.3L28.4 82.5L25.8 80.6L21.7 83.7L19.4 81.7L22.1 77.3L20.0 74.9L15.3 77.1L13.5 74.6L17.1 70.9L15.4 68.1L10.4 69.3L9.2 66.5L13.4 63.6L12.4 60.5L7.3 60.6L6.7 57.7L11.4 55.7L11.1 52.5L6.0 51.5L6.0 48.5L11.1 47.5L11.4 44.3L6.7 42.3L7.3 39.4L12.4 39.5L13.4 36.4L9.2 33.5L10.4 30.7L15.4 31.9L17.1 29.1L13.5 25.4L15.3 22.9L20.0 25.1L22.1 22.7L19.4 18.3L21.7 16.3L25.8 19.4L28.4 17.5L26.7 12.7L29.3 11.2L32.7 15.1L35.6 13.7L35.0 8.6L37.9 7.7L40.3 12.2L43.5 11.5L43.9 6.4L46.9 6.1L48.4 11.0L51.6 11.0L53.1 6.1L56.1 6.4L56.5 11.5L59.7 12.2L62.1 7.7L65.0 8.6L64.4 13.7L67.3 15.1L70.7 11.2L73.3 12.7L71.6 17.5L74.2 19.4L78.3 16.3L80.6 18.3L77.9 22.7L80.0 25.1L84.7 22.9L86.5 25.4L82.9 29.1L84.6 31.9L89.6 30.7L90.8 33.5L86.6 36.4L87.6 39.5L92.7 39.4L93.3 42.3L88.6 44.3Z" fill="#3a3a3c"/><circle cx="50" cy="50" r="35" fill="url(#r)"/><circle cx="50" cy="50" r="30.5" fill="#4a4a4e"/>' +
     '<path d="M47.5 21h5v58h-5zM24.9 63.8l2.5 4.3 50.2-29-2.5-4.3zM27.4 31.9l-2.5 4.3 50.2 29 2.5-4.3z" fill="url(#r)"/>' +
@@ -574,7 +579,7 @@ const ART = {
 // colour behind the zoom-open animation (roughly the icon's own background)
 const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', corel: '#4cba57',
   photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
-  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', presentation: '#f58a1f', sketch: '#f2566a', settings: '#b4b4ba' };
+  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', presentation: '#f58a1f', sketch: '#f2566a', collage: '#8b5cf6', settings: '#b4b4ba' };
 const artCache = {};
 function artSrc(id) {
   const k = id === 'planner' ? id + new Date().toDateString() : id;
@@ -605,7 +610,8 @@ const APPS = [
   { id: 'struk', name: 'Struk', icon: 'receipt', c: 3, d: 'Nota, invoice, kuitansi ke PDF/gambar' },
   { id: 'scan', name: 'Scan', icon: 'scan', c: 15, d: 'Pindai dokumen jadi PDF/JPG rapi' },
   { id: 'totext', name: 'ToText', icon: 'text', c: 0, d: 'Foto/PDF dokumen jadi teks rapi, siap disalin' },
-  { id: 'sketch', name: 'Sketch Paint', icon: 'brush', c: 10, d: 'Menggambar & melukis: kuas, lapisan, teks, foto, kanvas tak terbatas' }
+  { id: 'sketch', name: 'Sketch Paint', icon: 'brush', c: 10, d: 'Menggambar & melukis: kuas, lapisan, teks, foto, kanvas tak terbatas' },
+  { id: 'collage', name: 'Kolase', icon: 'collage', c: 8, d: 'Kolase foto & susun banyak foto otomatis ke kertas A4' }
 ];
 const COLORS = [
   ['#60a5fa', '#1d4ed8'], ['#4ade80', '#15803d'], ['#fcd34d', '#d97706'], ['#2dd4bf', '#0f766e'],
@@ -616,7 +622,7 @@ const COLORS = [
 ];
 const grad = i => { const c = COLORS[i] || COLORS[14]; return 'linear-gradient(160deg,' + c[0] + ',' + c[1] + ')'; };
 const ICON_CHOICES = ['doc', 'sheet', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
-  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush'];
+  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage'];
 const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'], ['grafit', 'Grafit'], ['polos', 'Polos']];
 
 // ---------- per-account portal settings (synced like every other key) ----------
