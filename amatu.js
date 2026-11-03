@@ -491,7 +491,13 @@
       b.releasePointerCapture(e.pointerId);
       if (moved) { lset(key, String(Math.round((b.getBoundingClientRect().top + 26) / innerHeight * 100))); return; }
       jset('pt.dirty', dirty);
-      flush().catch(() => { }).finally(() => { location.href = PORTAL; });
+      flush().catch(() => { }).finally(() => {
+        // opened by the portal in its own tab: close it, the portal tab is still there
+        let o = null;
+        try { o = window.opener && !window.opener.closed && window.opener.location.pathname === PORTAL ? window.opener : null; } catch { }
+        if (o) { try { o.focus(); } catch { } window.close(); if (window.closed) return; }
+        location.href = PORTAL;
+      });
     });
     document.body.appendChild(b);
   }

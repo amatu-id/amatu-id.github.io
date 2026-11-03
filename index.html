@@ -1064,9 +1064,28 @@ function openItem(id, from) {
   P.recent = [{ id, at: Date.now() }].concat((P.recent || []).filter(r => r.id !== id)).slice(0, 8);
   save();
   if (it.link) { window.open(it.href, '_blank', 'noopener'); renderTiles(); return; }
+  if (!STANDALONE && openTab(id, it.href)) {
+    if ($('#spot')) closeSpot();
+    if (from && !RM) from.animate([{ transform: 'scale(.86)' }, { transform: 'none' }], { duration: 260, easing: EASE });
+    A.flush().catch(() => { }); renderTiles(); return;
+  }
   opening = true;
   try { sessionStorage.setItem('pt.open', JSON.stringify({ id, at: Date.now() })); } catch { }
   Promise.all([zoomOpen(it, from), A.flush().catch(() => { })]).finally(() => { location.href = it.href; });
+}
+// in a browser every app gets its own tab so the portal tab stays open; one tab per app (named window):
+// a second tap brings the existing tab back instead of reloading it. The Home Screen app (standalone)
+// keeps the in-place zoom, a new window there would not share the unlocked session.
+const STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function openTab(id, href) {
+  let w = null;
+  try { w = window.open('', 'amatu-' + id); } catch { }
+  if (!w) return false;   // popup blocked → open in place
+  try {
+    if (w.location.href === 'about:blank') w.location.href = href;
+    w.focus();
+  } catch { w.location.href = href; }
+  return true;
 }
 function takeOpen() {
   try {
