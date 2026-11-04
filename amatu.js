@@ -75,10 +75,10 @@
     if (document.hidden) onHidden();
     // 3. Phones. A phone stops all JavaScript once the screen is off, unless the page is playing audio. So apps play an
     //    inaudible loop (started by the first tap, browsers require one). Portal setting "Tetap berjalan saat layar mati".
-    //    Not in Playlist (it plays real music) nor the Guitar tuner (uses the microphone).
+    //    Not in Playlist (it plays real music), the Guitar tuner (uses the microphone) nor Amatu Cut (both).
     const ua = navigator.userAgent;
     const phone = /iPhone|iPad|iPod|Android/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (!phone || APP === 'playlist' || APP === 'guitars') return;
+    if (!phone || APP === 'playlist' || APP === 'guitars' || APP === 'capcut') return;
     const jg = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
     const a = new Audio();
     let wav = '', stopped = false, quietUntil = 0;
@@ -694,7 +694,7 @@
   // the page reloads itself as soon as nothing is lost by it. Only for data this page really uses.
   // QUIET: apps that update themselves (own server sync, Playlist, Games) or tools where a reload would stop running work.
   // ASK: audio apps, a reload would cut the sound.
-  const QUIET = /^(saku|notes|planner|calc|english|mandarin|playlist|games|btcusdt|downloader|background|enhance|scan|totext|collage|pdf)$/;
+  const QUIET = /^(saku|notes|planner|calc|english|mandarin|playlist|games|btcusdt|downloader|background|enhance|scan|totext|collage|pdf|capcut)$/;
   const ASK = /^(guitars|piano)$/;
   function announce(keys) {
     for (const k of keys) if (k.startsWith('ls:')) {
