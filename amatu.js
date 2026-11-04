@@ -8,6 +8,7 @@
 
   const SB_URL = 'https://ieyqxmzztoxgpvwexbkj.supabase.co';
   const SB_KEY = 'sb_publishable_o-PQxhkJJ8FG4mHYTUqEBw_uXv9n-eG';
+  const VER = '2026-11-04-sync2';
   const PORTAL = '/';
   const DRIVE_FN = SB_URL + '/functions/v1/amatu-drive/';
   const MAX_ROW = 25000000;     // bigger records stay on this device only
@@ -121,6 +122,11 @@
   const jget = (k, d) => { try { const v = lget(k); return v == null ? d : JSON.parse(v); } catch { return d; } };
   const jset = (k, v) => lset(k, JSON.stringify(v));
   const local = k => k.startsWith('pt.');           // device-only keys of the portal itself
+  // Data these apps sync themselves, with their own server copy and merge: the Saku book + its merge base, and the item
+  // caches + read cursors of Notes, Planner, Calc, English and Mandarin. Syncing them here as well made one device's merge
+  // base or cursor land on another device, so entries vanished and came back. These keys stay on the device.
+  const ownSync = /^(sakumac\.u\..+\.(ledger|before-change|syncbase2?|massok)|sakumac\.ledger\.(v1|before-change)|(notes|planner|calc|english|mandarin)\.(u\..+|admin)\.(items|seq|queue))$/;
+  const noSync = k => local(k) || ownSync.test(k);
   const lsKeys = () => { const a = []; try { for (let i = 0; i < LS.length; i++) { const k = LS.key(i); if (k != null) a.push(k); } } catch { } return a; };
 
   // ---------- no page zoom: the view always stays at its fitted size, in the portal and in every app ----------
@@ -199,7 +205,10 @@
   }
   const tok = () => { const s = sess(); return s && s.t; };
   async function drive(route, body) {
-    const r = await fetch(DRIVE_FN + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+    const payload = JSON.stringify(body || {}), opt = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload };
+    let r;   // keepalive: a small push still arrives when the page is closed or the phone goes to sleep right after an edit
+    if (payload.length < 50000) { try { r = await fetch(DRIVE_FN + route, { ...opt, keepalive: true }); } catch { } }
+    if (!r) r = await fetch(DRIVE_FN + route, opt);
     let j = null; try { j = await r.json(); } catch { }
     if (!r.ok) { const e = new Error((j && j.error) || ('HTTP ' + r.status)); e.code = (j && j.error) || 'net'; throw e; }
     return j;
@@ -260,17 +269,46 @@
   const idbK = (db, st, key) => 'idb|' + E(db) + '|' + E(st) + '|' + JSON.stringify(encKey(key));
 
   // ---------- change tracking ----------
-  let dirty = jget('pt.dirty', {}), dseq = 0, dSaveT = 0, flushT = 0;
-  for (const k in dirty) dseq = Math.max(dseq, dirty[k]);
+  // Every tab keeps its own list (the portal and the apps run in separate tabs and used to overwrite one shared list, so
+  // a phone that killed the app tab forgot what was still unsent). A later tab takes over the lists of closed tabs.
+  const TAB = Math.random().toString(36).slice(2, 10), DK = 'pt.dirty.' + TAB;
+  const dirtyFiles = () => lsKeys().filter(k => k === 'pt.dirty' || k.startsWith('pt.dirty.'));
+  const fileMap = v => (v && v.d) || v || {};
+  let dirty = {}, dseq = 0, dSaveT = 0, flushT = 0, flushBy = 0, lastWrite = 0;
+  function dirtySave() { Object.keys(dirty).length ? jset(DK, { t: Date.now(), d: dirty }) : ldel(DK); }
+  function dirtyTake(maxAge) {   // adopt the lists other tabs left behind
+    let got = 0;
+    for (const f of dirtyFiles()) {
+      if (f === DK) continue;
+      const v = jget(f, null);
+      if (maxAge && v && v.t && Date.now() - v.t < maxAge) continue;
+      for (const k of Object.keys(fileMap(v))) if (!(k.startsWith('ls:') && noSync(k.slice(3))) && !(k in dirty)) { dirty[k] = ++dseq; got++; }
+      ldel(f);
+    }
+    if (got) dirtySave();
+    return got;
+  }
+  dirtyTake(0);
+  function dirtyAll() { const d = Object.assign({}, dirty); for (const f of dirtyFiles()) if (f !== DK) Object.assign(d, fileMap(jget(f, null))); return d; }
   const tracking = () => { const s = sess(); return !!(s && owner() === s.u); };
   function mark(k) {
     if (!tracking()) return;
     dirty[k] = ++dseq;
-    clearTimeout(dSaveT); dSaveT = setTimeout(() => jset('pt.dirty', dirty), 150);
-    clearTimeout(flushT); flushT = setTimeout(() => flush().catch(() => { }), 1500);
+    lastWrite = Date.now();
+    clearTimeout(dSaveT); dSaveT = setTimeout(dirtySave, 50);
+    // send soon after the last write, and at the latest 2.5 s after the first one (typing never holds it back)
+    if (!flushBy) flushBy = lastWrite + 2500;
+    clearTimeout(flushT); flushT = setTimeout(flushNow, Math.max(0, Math.min(400, flushBy - lastWrite)));
   }
-  SP.setItem = function (k, v) { const r = raw.set.call(this, k, v); if (this === LS && !local(String(k))) mark('ls:' + k); return r; };
-  SP.removeItem = function (k) { const had = this === LS && raw.get.call(this, k) != null; raw.del.call(this, k); if (had && !local(String(k))) mark('ls:' + k); };
+  function flushNow() { flushBy = 0; clearTimeout(flushT); flush().catch(() => { }); }
+  const readLs = new Set(), openedDb = new Set();   // what this page really uses: only those changes need a reload
+  SP.getItem = function (k) { if (this === LS) readLs.add(String(k)); return raw.get.call(this, k); };
+  SP.setItem = function (k, v) {
+    const same = this === LS && raw.get.call(this, k) === String(v), r = raw.set.call(this, k, v);
+    if (this === LS) { lastWrite = Date.now(); if (!same && !noSync(String(k))) mark('ls:' + k); }
+    return r;
+  };
+  SP.removeItem = function (k) { const had = this === LS && raw.get.call(this, k) != null; raw.del.call(this, k); if (had && !noSync(String(k))) mark('ls:' + k); };
   SP.clear = function () {
     if (this !== LS) return raw.clear.call(this);
     for (const k of lsKeys()) if (!local(k)) raw.del.call(LS, k);   // keep the portal's own keys
@@ -295,6 +333,7 @@
     const curStore = c => { const s = c.source; return s instanceof IDBIndex ? s.objectStore : s; };
     CU.update = function () { const req = IDB.cupd.apply(this, arguments); const s = curStore(this), pk = this.primaryKey, [db, st] = where(s); return ok(req, () => markRec(db, st, pk)); };
     CU.delete = function () { const req = IDB.cdel.apply(this, arguments); const s = curStore(this), pk = this.primaryKey, [db, st] = where(s); return ok(req, () => markRec(db, st, pk)); };
+    FA.open = function (name) { openedDb.add(String(name)); return IDB.open.apply(this, arguments); };
     FA.deleteDatabase = function (name) { const req = IDB.drop.apply(this, arguments); return ok(req, () => mark('idbdb|' + E(name))); };
   }
 
@@ -333,8 +372,23 @@
   // ---------- push ----------
   const cur = () => +(lget('pt.cur') || 0);
   const setCur = n => lset('pt.cur', String(n));
-  let flushing = null;
-  function flush() { return flushing || (flushing = doFlush().finally(() => { flushing = null; })); }
+  let flushing = null, flushQueued = null, flushFails = 0, retryT = 0;
+  // One push at a time. A call during a push waits for it and then sends what came in meanwhile, and a failed push retries
+  // by itself (2 s … 1 min): before, those changes just waited for the next edit or the next visit.
+  function flush() {
+    if (flushing) return flushQueued || (flushQueued = flushing.catch(() => { }).then(() => { flushQueued = null; return flush(); }));
+    clearTimeout(retryT);
+    flushing = doFlush().then(r => { flushFails = 0; return r; }, e => {
+      flushFails++;
+      dirtySave();
+      retryT = setTimeout(flushNow, Math.min(60000, 2000 * 2 ** (flushFails - 1)));
+      throw e;
+    }).finally(() => {
+      flushing = null;
+      if (!flushFails && !flushQueued && tok() && tracking() && Object.keys(dirty).length) flushT = setTimeout(flushNow, 200);
+    });
+    return flushing;
+  }
   async function doFlush() {
     const t = tok(); if (!t || !tracking()) return { pushed: 0 };
     const snap = Object.assign({}, dirty), keys = Object.keys(snap);
@@ -355,8 +409,8 @@
       for (const k of keys) {
         if (k === 'lsall') {
           const have = new Set();
-          for (const lk of lsKeys()) if (!local(lk)) { have.add('ls:' + lk); addVal('ls:' + lk, lget(lk) || ''); }
-          for (const rk of await remoteKeys('ls:')) if (!have.has(rk)) rows.push({ k: rk, d: true });
+          for (const lk of lsKeys()) if (!noSync(lk)) { have.add('ls:' + lk); addVal('ls:' + lk, lget(lk) || ''); }
+          for (const rk of await remoteKeys('ls:')) if (!have.has(rk) && !noSync(rk.slice(3))) rows.push({ k: rk, d: true });
         } else if (k.startsWith('ls:')) {
           if (snap.lsall) continue;
           const v = lget(k.slice(3));
@@ -402,49 +456,73 @@
       pushed += part.length;
     }
     for (const k of keys) if (dirty[k] === snap[k]) delete dirty[k];
-    jset('pt.dirty', dirty);
+    dirtySave();
     lset('pt.synced', String(Date.now()));
     if (pushed) { rtSend(); bc && bc.postMessage({ t: 'pushed' }); }
     return { pushed };
   }
 
   // ---------- pull ----------
-  let pulling = null;
-  function pull() { return pulling || (pulling = doPull().finally(() => { pulling = null; })); }
+  let pulling = null, pullAgain = false, pullRetry = 0;
+  function pull() {
+    if (pulling) { pullAgain = true; return pulling; }
+    return pulling = doPull().finally(() => {
+      pulling = null;
+      if (pullAgain) { pullAgain = false; pull().catch(() => { }); }
+    });
+  }
   async function doPull() {
     const t = tok(); if (!t || !tracking()) return { changed: 0 };
     let changed = 0, more = true, guard = 0;
+    const keys = new Set();
     while (more && guard++ < 500) {
       const r = await rpc('amt_pull2', { p_token: t, p_after: cur() });
-      const rows = r.rows || [], ids = rows.filter(x => x.g && x.o !== DEV).map(x => x.g);
-      if (ids.length) {          // values kept in Google Drive
-        const got = await drive('get', { t, ids });
-        for (const x of rows) if (x.g && x.o !== DEV) x.v = got.v[x.g];
-      }
-      changed += await apply(rows.filter(x => x.d || x.o === DEV || x.v != null));
-      if (r.last) setCur(r.last);
-      more = !!r.more;
+      const all = r.rows || [], rows = all.filter(x => !(x.k.startsWith('ls:') && noSync(x.k.slice(3))));
+      const need = rows.filter(x => x.g && !x.d && x.o !== DEV);
+      let upto = r.last;
+      if (need.length) {         // values kept in Google Drive
+        const got = await drive('get', { t, ids: need.map(x => x.g) });
+        for (const x of need) x.v = got.v[x.g];
+        // A file that could not be read: stop in front of it and read it again next time, never step over it. (It may have
+        // just been replaced, then the next pull brings the newer value.) Only a file that stays missing is given up on.
+        const tries = jget('pt.miss', {}), bad = need.filter(x => x.v == null && (tries[x.k] = (tries[x.k] || 0) + 1) <= 5);
+        for (const x of need) if (x.v != null) delete tries[x.k];
+        jset('pt.miss', tries);
+        if (bad.length) {
+          upto = Math.min(...bad.map(x => x.s)) - 1;
+          more = false;
+          clearTimeout(pullRetry); pullRetry = setTimeout(() => pull().catch(() => { }), 4000);
+        } else more = !!r.more;
+      } else more = !!r.more;
+      changed += await apply(rows.filter(x => (x.s == null || x.s <= upto) && (x.d || x.o === DEV || x.v != null)), keys);
+      if (upto > cur()) setCur(upto);
     }
     lset('pt.synced', String(Date.now()));
-    if (changed) bc && bc.postMessage({ t: 'pulled' });
-    return { changed };
+    if (keys.size) {
+      const list = [...keys];
+      bc && bc.postMessage({ t: 'pulled', keys: list });
+      announce(list);
+      reloadCheck(list);
+    }
+    return { changed, keys: [...keys] };
   }
-  async function apply(rows) {
+  async function apply(rows, keys) {
     let n = 0;
-    const schemas = jget('pt.schemas', {}), byDb = {};
-    const lsAll = !!dirty.lsall;
+    const schemas = jget('pt.schemas', {}), byDb = {}, dirtyNow = dirtyAll();
+    const lsAll = !!dirtyNow.lsall;
     for (const r of rows) {
       if (r.o === DEV) continue;                         // written by this device
       if (r.k.startsWith('ls:')) {
-        if (lsAll || dirty[r.k]) continue;
+        if (lsAll || dirtyNow[r.k]) continue;
         const k = r.k.slice(3), before = lget(k);
-        if (r.d) { if (before != null) { ldel(k); n++; } } else if (before !== r.v) { lset(k, r.v); n++; }
+        if (r.d) { if (before != null) { ldel(k); n++; keys && keys.add(r.k); } }
+        else if (before !== r.v) { if (lset(k, r.v)) { n++; keys && keys.add(r.k); } else console.warn('[amatu] penyimpanan browser penuh, tidak bisa menyimpan', k); }
       } else if (r.k.startsWith('idbschema|')) {
         const name = D(r.k.slice(10));
         if (r.d) delete schemas[name]; else schemas[name] = JSON.parse(r.v);
       } else if (r.k.startsWith('idb|')) {
         const p = r.k.split('|');
-        if (dirty[r.k] || dirty['idbs|' + p[1] + '|' + p[2]]) continue;
+        if (dirtyNow[r.k] || dirtyNow['idbs|' + p[1] + '|' + p[2]]) continue;
         (byDb[D(p[1])] = byDb[D(p[1])] || []).push({ st: D(p[2]), key: dec(JSON.parse(p.slice(3).join('|'))), r });
       }
     }
@@ -462,7 +540,7 @@
             const s = tx.objectStore(x.st);
             if (x.r.d) IDB.del.call(s, x.key);
             else { const v = dec(JSON.parse(x.r.v)); s.keyPath != null ? IDB.put.call(s, v) : IDB.put.call(s, v, x.key); }
-            n++;
+            n++; keys && keys.add('db:' + name);
           }
           tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
         });
@@ -493,7 +571,7 @@
   // ---------- account switching ----------
   async function wipe() {
     for (const k of lsKeys()) if (!local(k)) ldel(k);
-    for (const k of ['pt.cur', 'pt.dirty', 'pt.schemas', 'pt.big', 'pt.synced']) ldel(k);
+    for (const k of ['pt.cur', 'pt.schemas', 'pt.big', 'pt.synced', 'pt.miss', ...dirtyFiles()]) ldel(k);
     dirty = {}; dseq = 0;
     for (const name of await dbNames()) {
       await new Promise(res => { const r = IDB.drop.call(indexedDB, name); r.onsuccess = r.onerror = res; r.onblocked = () => setTimeout(res, 3000); });
@@ -501,7 +579,7 @@
   }
   async function hasLocalData() { return lsKeys().some(k => !local(k)) || (await dbNames()).length > 0; }
   async function adopt() {      // first sign-in on a device that already holds unowned app data
-    for (const k of lsKeys()) if (!local(k)) mark('ls:' + k);
+    for (const k of lsKeys()) if (!noSync(k)) mark('ls:' + k);
     for (const name of await dbNames()) {
       const db = await openDb(name).catch(() => null);
       if (!db) continue;
@@ -523,9 +601,10 @@
     await pull();
     rtStart();
   }
-  const pending = () => Object.keys(dirty).length;
+  const pending = () => Object.keys(dirtyAll()).length;
   async function leave(opts) {       // sign out: push what is left, then clear this device
     const t = tok();
+    dirtyTake(0);
     if (!(opts && opts.force)) await flush();
     if (t) await rpc('amt_logout', { p_token: t }).catch(() => { });
     rtStop();
@@ -535,30 +614,149 @@
   function lock() { ldel('pt.unlock'); }
 
   // ---------- realtime (Supabase broadcast over Phoenix websocket) ----------
-  let ws = null, wsTopic = '', wsRef = 0, hb = 0, wsRetry = 0, wsStop = false;
+  let ws = null, wsTopic = '', wsRef = 0, hb = 0, wsRetry = 0, wsStop = false, wsJoined = false, wsSeen = 0, wsOwed = false, wsT = 0;
   const listeners = [];
   function rtStart() {
+    wsStop = false;
+    livePoll();
     const s = sess(); if (!s || !s.c || ws) return;
-    wsStop = false; wsTopic = 'realtime:amt-' + s.c;
-    try { ws = new WebSocket(SB_URL.replace('https', 'wss') + '/realtime/v1/websocket?apikey=' + SB_KEY + '&vsn=1.0.0'); } catch { ws = null; return; }
-    ws.onopen = () => {
-      wsRetry = 0;
+    wsTopic = 'realtime:amt-' + s.c; wsJoined = false;
+    let sock;
+    try { sock = ws = new WebSocket(SB_URL.replace('https', 'wss') + '/realtime/v1/websocket?apikey=' + SB_KEY + '&vsn=1.0.0'); } catch { ws = null; return; }
+    sock.onopen = () => {
+      wsRetry = 0; wsSeen = Date.now();
       wsSend({ topic: wsTopic, event: 'phx_join', payload: { config: { broadcast: { self: false, ack: false }, presence: { key: '' }, private: false } } });
-      hb = setInterval(() => wsSend({ topic: 'phoenix', event: 'heartbeat', payload: {} }), 25000);
+      clearInterval(hb); hb = setInterval(() => wsSend({ topic: 'phoenix', event: 'heartbeat', payload: {} }), 25000);
     };
-    ws.onmessage = e => {
+    sock.onmessage = e => {
+      wsSeen = Date.now();
       let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.event === 'phx_reply' && m.topic === wsTopic && m.payload && m.payload.status === 'ok' && !wsJoined) { wsJoined = true; if (wsOwed) rtSend(); }
+      if (m.event === 'phx_close' || m.event === 'phx_error') { if (m.topic === wsTopic) { try { sock.close(); } catch { } } }
       if (m.event === 'broadcast' && m.payload && m.payload.event === 'sync' && m.payload.payload && m.payload.payload.dev !== DEV) remote();
     };
-    ws.onclose = () => { clearInterval(hb); ws = null; if (!wsStop) setTimeout(rtStart, Math.min(30000, 2000 * ++wsRetry)); };
-    ws.onerror = () => { try { ws && ws.close(); } catch { } };
+    sock.onclose = () => {
+      if (sock !== ws) return;
+      clearInterval(hb); ws = null; wsJoined = false;
+      if (!wsStop) { clearTimeout(wsT); wsT = setTimeout(rtStart, Math.min(30000, 2000 * ++wsRetry)); }
+    };
+    sock.onerror = () => { try { sock.close(); } catch { } };
   }
-  function rtStop() { wsStop = true; clearInterval(hb); try { ws && ws.close(); } catch { } ws = null; }
+  function rtStop() { wsStop = true; clearInterval(hb); clearTimeout(wsT); clearTimeout(pollT); pollT = 0; const s = ws; ws = null; wsJoined = false; try { s && s.close(); } catch { } }
   function wsSend(m) { if (ws && ws.readyState === 1) { m.ref = String(++wsRef); ws.send(JSON.stringify(m)); } }
-  function rtSend() { wsSend({ topic: wsTopic, event: 'broadcast', payload: { type: 'broadcast', event: 'sync', payload: { dev: DEV } } }); }
-  function remote() { listeners.forEach(f => { try { f('remote'); } catch { } }); }
+  function rtSend() {
+    if (!wsJoined) { wsOwed = true; return; }
+    wsOwed = false;
+    wsSend({ topic: wsTopic, event: 'broadcast', payload: { type: 'broadcast', event: 'sync', payload: { dev: DEV } } });
+  }
+  function remote() {
+    pull().catch(() => { });
+    listeners.forEach(f => { try { f('remote'); } catch { } });
+  }
   const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('amatu') : null;
-  if (bc) bc.onmessage = e => listeners.forEach(f => { try { f('tab', e.data); } catch { } });
+  if (bc) bc.onmessage = e => {
+    if (e.data && e.data.t === 'pulled' && e.data.keys) reloadCheck(e.data.keys);   // another tab of this browser read it first
+    listeners.forEach(f => { try { f('tab', e.data); } catch { } });
+  };
+
+  // ---------- staying up to date without a message: phones drop the websocket when asleep ----------
+  let pollT = 0, wakeAt = 0;
+  async function check() {
+    const t = tok(); if (!t || !tracking()) return;
+    dirtyTake(15000);
+    if (Object.keys(dirty).length && !flushing && !flushFails) flushNow();
+    const st = await rpc('amt_status', { p_token: t });
+    if (st && st.head > cur()) await pull();
+  }
+  function livePoll() {
+    clearTimeout(pollT);
+    if (wsStop) return;
+    const ms = document.hidden ? 60000 : wsJoined ? 15000 : 4000;
+    pollT = setTimeout(() => { check().catch(() => { }).finally(livePoll); }, ms);
+  }
+  function wake() {   // back from another tab or from sleep, or online again
+    if (!tok() || wsStop) return;
+    const now = Date.now(); if (now - wakeAt < 800) return; wakeAt = now;
+    if (ws && now - wsSeen > 35000) { const s = ws; ws = null; wsJoined = false; clearInterval(hb); try { s.close(); } catch { } }
+    if (!ws) { clearTimeout(wsT); rtStart(); }
+    flushFails = 0; flushNow();
+    check().catch(() => { });
+    checkVersion();
+  }
+  addEventListener('online', wake);
+  addEventListener('focus', wake);
+  addEventListener('pageshow', wake);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); else livePoll(); });
+  addEventListener('pagehide', () => { dirtySave(); if (Object.keys(dirty).length) flush().catch(() => { }); });
+
+  // ---------- showing changes from another device in the open page ----------
+  // Apps read their data once at start, so a change has to reach them: storage events for the apps that listen, otherwise
+  // the page reloads itself as soon as nothing is lost by it. Only for data this page really uses.
+  // QUIET: apps that update themselves (own server sync, Playlist, Games) or tools where a reload would stop running work.
+  // ASK: audio apps, a reload would cut the sound.
+  const QUIET = /^(saku|notes|planner|calc|english|mandarin|playlist|games|btcusdt|downloader|background|enhance|scan|totext|collage)$/;
+  const ASK = /^(guitars|piano)$/;
+  function announce(keys) {
+    for (const k of keys) if (k.startsWith('ls:')) {
+      const key = k.slice(3);
+      try { dispatchEvent(new StorageEvent('storage', { key, newValue: lget(key), url: location.href, storageArea: LS })); } catch { }
+    }
+    try { dispatchEvent(new CustomEvent('amatu:change', { detail: { keys } })); } catch { }
+  }
+  let lastInput = 0, lastType = 0, wantReload = false, reloadT = 0, askedAt = 0;
+  if (!isPortal) {
+    ['pointerdown', 'pointerup', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true }));
+    ['input', 'change'].forEach(ev => addEventListener(ev, () => { lastInput = lastType = Date.now(); }, { passive: true, capture: true }));
+  }
+  const usesKey = k => k.startsWith('ls:') ? readLs.has(k.slice(3)) : k.startsWith('db:') && openedDb.has(k.slice(3));
+  function reloadCheck(keys) {
+    if (isPortal || QUIET.test(APP) || (window.AMATU && window.AMATU.guest && window.AMATU.guest())) return;
+    if (!keys.some(usesKey)) return;
+    if (ASK.test(APP)) return banner();
+    wantReload = true;
+    reloadSoon();
+  }
+  function busy() {   // is there anything a reload would destroy right now?
+    const now = Date.now();
+    if ((typeof pinBox !== 'undefined' && pinBox) || document.querySelector('dialog[open],[aria-modal="true"]') || document.fullscreenElement) return true;
+    if ([...document.querySelectorAll('audio,video')].some(m => !m.paused && !m.ended)) return true;
+    if (lastType > lastWrite) return true;                        // typed something the app has not stored yet
+    return now - Math.max(lastInput, lastWrite) < (document.hidden ? 1500 : 5000);   // still working, or the app is saving
+  }
+  function reloadSoon() {
+    clearTimeout(reloadT);
+    if (!wantReload) return;
+    if (busy() || flushing || Object.keys(dirty).length) {
+      const since = askedAt || (askedAt = Date.now());
+      if (Date.now() - since > 30000) banner();
+      reloadT = setTimeout(reloadSoon, 1000);
+      return;
+    }
+    let log = []; try { log = JSON.parse(sessionStorage.getItem('pt.reloads') || '[]').filter(t => Date.now() - t < 300000); } catch { }
+    if (log.length >= 12) { wantReload = false; return banner(); }   // two devices rewriting each other: never loop
+    const wait = log.length ? log[log.length - 1] + 6000 - Date.now() : 0;
+    if (wait > 0) { reloadT = setTimeout(reloadSoon, wait); return; }
+    log.push(Date.now());
+    try {
+      sessionStorage.setItem('pt.reloads', JSON.stringify(log));
+      sessionStorage.setItem('pt.scroll', JSON.stringify({ p: location.pathname, x: scrollX, y: scrollY }));
+    } catch { }
+    location.reload();
+  }
+  if (!isPortal) addEventListener('load', () => {
+    let v = null; try { v = JSON.parse(sessionStorage.getItem('pt.scroll')); sessionStorage.removeItem('pt.scroll'); } catch { }
+    if (v && v.p === location.pathname) requestAnimationFrame(() => scrollTo(v.x, v.y));
+  });
+  // An open tab keeps running the old sync code for days on a phone: move to a new version of this file by itself.
+  let verAt = Date.now();
+  function checkVersion() {
+    if (isPortal || QUIET.test(APP) || Date.now() - verAt < 600000) return;
+    verAt = Date.now();
+    fetch('/amatu.js?_=' + verAt, { cache: 'no-store' }).then(r => r.text()).then(t => {
+      const m = /const VER = '([^']+)'/.exec(t);
+      if (m && m[1] !== VER) { wantReload = true; reloadSoon(); }
+    }).catch(() => { });
+  }
 
   // ---------- app pages: guard, home button, update banner ----------
   function goPortal() {
@@ -574,23 +772,17 @@
     }
     ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, touch, { passive: true, capture: true }));
     addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') { jset('pt.dirty', dirty); flush().catch(() => { }); }
+      if (document.visibilityState === 'hidden') { dirtySave(); flush().catch(() => { }); }
       else softLock();
     });
-    addEventListener('pagehide', () => jset('pt.dirty', dirty));
     setInterval(softLock, 30000);
-    // Another device may have changed this account since this device last synced: apply, then reload once.
+    // Another device may have changed this account since this device last synced: apply (the page follows if it uses it).
     const s = sess();
     rpc('amt_status', { p_token: s.t }).then(async st => {
-      if (st && st.head > cur()) {
-        const { changed } = await pull();
-        if (changed && !sessionStorage.getItem('pt.reloaded')) { sessionStorage.setItem('pt.reloaded', '1'); location.reload(); return; }
-      }
-      sessionStorage.removeItem('pt.reloaded');
+      if (st && st.head > cur()) await pull();
       flush().catch(() => { });
     }).catch(e => { if (e.code === 'auth' || e.code === 'pin') { lock(); goPortal(); } });
     rtStart();
-    listeners.push(kind => { if (kind === 'remote') banner(); });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', homeButton); else homeButton();
     fitInit();
   }
@@ -691,8 +883,8 @@
     d.id = 'amatu-bar';
     d.innerHTML = '<span>Ada perubahan dari perangkat lain</span><button>Muat ulang</button><button>Nanti</button>';
     const [ok, no] = d.querySelectorAll('button');
-    ok.onclick = async () => { ok.disabled = true; await flush().catch(() => { }); await pull().catch(() => { }); location.reload(); };
-    no.onclick = () => d.remove();
+    ok.onclick = async () => { ok.disabled = true; wantReload = false; await flush().catch(() => { }); await pull().catch(() => { }); location.reload(); };
+    no.onclick = () => { wantReload = false; clearTimeout(reloadT); d.remove(); };
     document.body.appendChild(d);
   }
 
