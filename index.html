@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -151,6 +151,7 @@ svg{display:block}
   grid-template-rows:repeat(var(--rows),minmax(0,1fr));padding:0 var(--px);overflow:hidden}
 .tile{display:flex;flex-direction:column;align-items:center;gap:var(--lg);position:relative;justify-self:center;align-self:center;width:calc(var(--ic) + 22px);
   cursor:pointer;touch-action:manipulation;-webkit-touch-callout:none}
+.page .tile{width:max(calc(var(--ic) + 22px),var(--tw,0px))}
 .icw{position:relative;filter:drop-shadow(0 3px 7px rgba(0,0,0,.16));transition:transform .28s cubic-bezier(.3,.7,.4,1.3)}
 @media (hover:hover){.home:not(.drag) .tile:hover .icw{transform:translateY(-3px) scale(1.05)}}
 .tile:active .ic{filter:brightness(.72)}
@@ -371,6 +372,20 @@ html[data-mode=dark] .opt.on{background:#636366}
 @keyframes sheetdown{to{transform:translateY(100%)}}
 @media (max-height:720px){.lk-time{font-size:56px}.lk-date{font-size:16px}.pad{gap:10px 22px}.pad button{width:68px;height:68px}.pad b{font-size:30px}.dots{margin:10px 0 2px}}
 @media (max-height:560px){.lk-top{display:none}}
+@media (max-height:600px){.center{padding:8px 16px}.card{padding:18px 20px 14px}.brand{margin-bottom:12px}.seg{margin-bottom:10px}.help{margin-top:10px;padding-top:10px}}
+/* phone on its side: PIN pad and sign-in side by side, so everything fits without scrolling */
+@media (max-height:520px) and (orientation:landscape){
+  .lock{padding:max(6px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+  .lk-mid{--k:min(68px,calc((100dvh - 24px) / 4 - 5px));display:grid;grid-template-columns:auto auto;grid-template-rows:1fr auto auto auto 1fr;column-gap:clamp(24px,8vw,72px);justify-items:center;align-items:center;margin:auto;padding:0}
+  .lk-who{grid-column:1;grid-row:2;margin-bottom:6px}.lk-title{grid-column:1;grid-row:3;text-align:center;font-size:17px}
+  .dots{grid-column:1;grid-row:4;margin:10px 0 2px}.lock .err{grid-column:1;grid-row:5;align-self:start}
+  .pad{grid-column:2;grid-row:1/-1;grid-template-columns:repeat(3,var(--k));gap:5px 18px;margin:0}
+  .pad button{width:var(--k);height:var(--k)}.pad b{font-size:calc(var(--k) * .44)}.pad small{display:none}.pad button.t{font-size:14px}
+  .lk-bot{position:fixed;left:max(10px,env(safe-area-inset-left));bottom:max(4px,env(safe-area-inset-bottom))}
+  .card{max-width:720px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);grid-template-rows:auto auto 1fr;column-gap:22px;padding:14px 20px;border-radius:22px}
+  .brand,.seg,.help{grid-column:1}.help{align-self:end;flex-wrap:wrap}
+  #f{grid-column:2;grid-row:1/4}.card .inp{padding:8px 12px;font-size:16px}
+}
 @media (prefers-reduced-motion:reduce){.editing .tile .icw{animation:none}.intro .page:first-child>*,.intro .dock{animation:none}}
 </style>
 </head>
@@ -751,6 +766,13 @@ const hm = d => d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digi
 
 // ---------- gate ----------
 let gateMsg = '';
+// the sign-in card always fits the window: shrunk a little on short screens instead of being cut off
+function fitCard() {
+  const c = $('.center .card'); if (!c) return;
+  c.style.zoom = '';
+  const cs = getComputedStyle(c.parentElement), k = (innerHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 1) / c.offsetHeight;
+  if (k < 1) c.style.zoom = String(Math.max(.72, Math.floor(k * 100) / 100));
+}
 function gate(mode) {
   stopHome();
   mode = mode || 'login';
@@ -767,6 +789,7 @@ function gate(mode) {
     '<div class="help"><span class="mut">Belum punya akses? Hubungi admin.</span><a class="wa" href="' + WA + '" target="_blank" rel="noopener">' + WA_SVG + 'Admin</a></div>' +
     '</div></div>';
   gateMsg = '';
+  fitCard();
   $$('.seg button').forEach(b => b.onclick = () => gate(b.dataset.m));
   eyes(app);
   const old = A.sess(); if (old && old.u) $('#u').value = old.u;
@@ -1035,13 +1058,23 @@ function layout() {
   const ws = plan(cols, rows, phone, !phone && W / H > 1.2);
   const cellW = gw / cols, rowH = gh / rows, my = Math.max(0, (rowH - tileH) / 2);
   set('--cols', cols); set('--rows', rows);
+  set('--tw', Math.floor(cellW - 2) + 'px');   // labels use the whole cell, so they aren't cut off
+  if (P.labels) {   // the longest usual name must fit its cell on small screens
+    const m = items(), cx = (layout.cx = layout.cx || document.createElement('canvas').getContext('2d'));
+    cx.font = '500 ' + lf + 'px -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif';
+    const long = Math.max(0, ...visible().map(id => m[id].name).filter(n => n.length <= 16).map(n => cx.measureText(n).width));
+    if (long > cellW - 3) set('--lf', Math.max(9, lf * (cellW - 3) / long).toFixed(1) + 'px');
+  }
   set('--wmx', Math.max(0, (cellW - ic) / 2).toFixed(1) + 'px'); set('--wmt', my.toFixed(1) + 'px'); set('--wmb', (my + lh).toFixed(1) + 'px');
   const per = cols * rows;
   L = { phone, cols, rows, ws, per, first: per - ws.reduce((s, w) => s + w.w * w.h, 0) };
 }
 function relayout() { layout(); renderTiles(); }
-let rzT = 0;
-addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { if ($('#grid') && !drag) { closeQA(true); relayout(); } }, 120); });
+let rzT = 0, rzW = innerWidth;
+addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => {
+  if ($('#grid') && !drag) { closeQA(true); relayout(); }
+  if (innerWidth !== rzW) { rzW = innerWidth; fitCard(); }   // not on height alone: that is the on-screen keyboard
+}, 120); });
 
 const tileHtml = (it, where) => '<div class="tile" data-id="' + esc(it.id) + '" title="' + esc(it.name + (it.d ? ' — ' + it.d : '')) + '"><div class="icw">' +
   (it.id === 'settings' && where !== 'dock' ? '' : '<button class="x" data-x aria-label="' + (where === 'dock' ? 'Lepas dari Dock' : 'Sembunyikan') + '">' + svg('minus', 3.2) + '</button>') +

@@ -27,6 +27,41 @@
   const local = k => k.startsWith('pt.');           // device-only keys of the portal itself
   const lsKeys = () => { const a = []; try { for (let i = 0; i < LS.length; i++) { const k = LS.key(i); if (k != null) a.push(k); } } catch { } return a; };
 
+  // ---------- no page zoom: the view always stays at its fitted size, in the portal and in every app ----------
+  // Only the browser's zoom is cancelled (preventDefault, never stopPropagation), so a canvas app that zooms its own
+  // drawing with pinch / Ctrl+wheel / Ctrl+plus still gets those events. Ctrl/⌘+0 stays free: it is the way back to 100%
+  // from a zoom Chrome has saved for this site. Keeps the scale an app asks for (Notes & co. use 0.88 on phones).
+  (function noZoom() {
+    const R = document.documentElement;
+    function lockMeta() {
+      const m = document.querySelector('meta[name=viewport]'); if (!m) return false;
+      const c = m.getAttribute('content') || '', sc = /initial-scale\s*=\s*([\d.]+)/i.exec(c), s = sc ? +sc[1] || 1 : 1;
+      const want = 'width=device-width, initial-scale=' + s + ', minimum-scale=' + s + ', maximum-scale=' + s + ', user-scalable=no' +
+        (/viewport-fit\s*=\s*cover/i.test(c) ? ', viewport-fit=cover' : '');
+      if (c !== want) m.setAttribute('content', want);
+      return true;
+    }
+    lockMeta();
+    // the app's own <meta viewport> comes after this script, and some apps rewrite it from an inline script
+    if (window.MutationObserver) new MutationObserver(lockMeta).observe(document.head || R, { childList: true, subtree: true, attributes: true, attributeFilter: ['content', 'name'] });
+    document.addEventListener('DOMContentLoaded', () => {
+      if (lockMeta()) return;
+      const m = document.createElement('meta'); m.name = 'viewport'; m.content = 'width=device-width, initial-scale=1'; document.head.appendChild(m);
+    });
+    const css = document.createElement('style');
+    css.id = 'amatu-nozoom';
+    css.textContent = 'html{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}';
+    (document.head || R).appendChild(css);
+    const stop = e => { if (e.cancelable) e.preventDefault(); };
+    const live = { passive: false, capture: true };
+    addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey) stop(e); }, live);   // also a trackpad pinch in Chrome / Edge / Firefox
+    addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && (/^(Equal|Minus|NumpadAdd|NumpadSubtract)$/.test(e.code) || /^[+=_-]$/.test(e.key))) stop(e);
+    }, true);
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev => addEventListener(ev, stop, live));   // Safari pinch (Mac, iPhone, iPad)
+    addEventListener('touchmove', e => { if (e.touches.length > 1) stop(e); }, live);                  // iOS ignores user-scalable=no
+  })();
+
   // ---------- page transitions: same-origin navigations cross-fade instead of flashing an empty frame ----------
   // (Chrome / Safari cross-document View Transitions; the portal adds its own app-close zoom on top of this)
   const vt = document.createElement('style');
@@ -579,19 +614,43 @@
         }
       })(document.body, 0);
     }
+    // desktop: a full-width toolbar whose buttons run past its own box, in a page that clips them, takes a second row.
+    // (Not CSS zoom: that breaks canvases sized from getBoundingClientRect, such as the 3D view in Rumah 3D.)
+    function wrapBars() {
+      for (const el of document.body.querySelectorAll('header,nav,[role=toolbar],[role=menubar],[class*=toolbar],[class*=topbar],[class*=menubar]')) {
+        if (el.scrollWidth <= el.clientWidth + 4 || el.clientWidth < innerWidth * 0.5 || el.offsetHeight > 160) continue;
+        const cs = getComputedStyle(el);
+        if (!/flex/.test(cs.display) || !/^row/.test(cs.flexDirection) || cs.flexWrap !== 'nowrap' || cs.overflowX !== 'visible' || cs.visibility === 'hidden') continue;
+        el.dataset.amfit = 'wrap';
+        Object.assign(el.style, { flexWrap: 'wrap', height: 'auto', minHeight: cs.height, rowGap: '6px', flexShrink: '0' });
+      }
+    }
     function toolbars() {
-      if (innerWidth >= 1100) return;
+      if (innerWidth >= 1100) return wrapBars();
       const W = innerWidth - (mode === 'box' ? need.r : 0);
       for (const el of document.body.querySelectorAll('*')) {
         if (el.id === 'amatu-home' || el.dataset.amfit) continue;
         const r = el.getBoundingClientRect();
-        if (r.right <= W + 2 || r.left >= W - 20 || r.left < -2 || r.height < 16 || r.height > 160) continue;
+        if (r.height < 16 || r.height > 160 || r.left < -2) continue;
+        const past = r.right > W + 2 && r.left < W - 20;   // the bar itself runs past the window …
+        const inner = !past && r.right <= W + 2 && r.width >= 120 && el.scrollWidth > el.clientWidth + 2;   // … or only its buttons do
+        if (!past && !inner) continue;
         const cs = getComputedStyle(el);
         if (!/flex|grid/.test(cs.display) || cs.position === 'fixed' || cs.position === 'absolute' || /auto|scroll/.test(cs.overflowX)) continue;
+        if (inner && (cs.display.indexOf('flex') < 0 || !/^row/.test(cs.flexDirection) || cs.flexWrap !== 'nowrap' || !el.querySelector('button,select,a,input'))) continue;
         const p = el.parentElement;
         if (!p || p.getBoundingClientRect().right > W + 2) continue;
         el.dataset.amfit = 'x';
         Object.assign(el.style, { minWidth: '0', maxWidth: '100%', flexShrink: '1', overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none' });
+      }
+      // a scroller squeezed to nothing between its neighbours (Amatu Draw's menus on a phone): the whole bar scrolls instead
+      for (const el of document.body.querySelectorAll('[data-amfit=x]')) {
+        const p = el.parentElement, cs = p && getComputedStyle(p);
+        if (el.clientWidth >= 90 || el.scrollWidth <= el.clientWidth + 2 || !cs || cs.display.indexOf('flex') < 0) continue;
+        Object.assign(el.style, { flex: 'none', maxWidth: 'none', overflowX: 'visible', overflowY: 'visible' });
+        for (const c of p.children) if (getComputedStyle(c).flexShrink !== '0') c.style.flexShrink = '0';
+        p.dataset.amfit = 'x';
+        Object.assign(p.style, { minWidth: '0', maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none' });
       }
     }
     // ----- safe area -----
