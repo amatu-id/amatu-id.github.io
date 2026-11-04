@@ -683,7 +683,7 @@ const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hut
 
 // ---------- per-account portal settings (synced like every other key) ----------
 const DEF = () => ({ v: 1, order: APPS.map(a => a.id).concat('settings'), hidden: [], custom: {}, dock: ['notes', 'planner', 'saku', 'calc'], links: [],
-  mode: 'auto', wall: 'aurora', size: 'm', labels: true, idle: 15, recent: [] });
+  mode: 'auto', wall: 'aurora', size: 'm', labels: true, idle: 15, bg: '1', recent: [] });
 let P = load();
 function load() { const d = DEF(), p = A.jget('amatu.portal', null) || {}; return Object.assign(d, p); }
 function save() { P.updated = Date.now(); localStorage.setItem('amatu.portal', JSON.stringify(P)); }
@@ -1572,6 +1572,8 @@ function settings() {
     '<div class="walls" id="walls">' + WALLS.map(([v, l]) => '<button class="wl' + (P.wall === v ? ' on' : '') + '" data-w="' + v + '" title="' + l + '" aria-label="' + l + '"></button>').join('') + '</div></div></div>' +
     '<div class="sec"><h3>Layar Utama</h3><div class="grp">' +
     brow('ehome', ri('#34c759', 'edit'), 'Edit Layar Utama') + brow('addl', ri('#007aff', 'link'), 'Tambah Pintasan') + brow('reset', ri('#8e8e93', 'refresh'), 'Atur Ulang Tata Letak') + '</div></div>' +
+    '<div class="sec"><h3>Latar Belakang</h3><div class="grp">' +
+    row(ri('#30b0c7', 'refresh'), 'Tetap berjalan saat layar mati (HP)', opts('bg', [['1', 'Aktif'], ['0', 'Mati']])) + '</div></div>' +
     '<div class="sec"><h3>Keamanan</h3><div class="grp">' +
     row(ri('#ff3b30', 'lock'), 'Kunci otomatis', opts('idle', [[5, '5 mnt'], [15, '15 mnt'], [30, '30 mnt'], [60, '1 jam'], [0, 'Tidak pernah']])) +
     brow('cpin', ri('#ff9500', 'key'), 'Ganti PIN') + brow('cpass', ri('#8e8e93', 'key'), 'Ganti Password') + brow('lk', ri('#5856d6', 'lock'), 'Kunci Sekarang') + '</div></div>' +

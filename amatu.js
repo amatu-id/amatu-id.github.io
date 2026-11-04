@@ -15,6 +15,102 @@
   const isPortal = location.pathname === PORTAL || location.pathname === '/index.html';
   const APP = isPortal ? 'portal' : (location.pathname.split('/')[1] || 'portal').toLowerCase();   // repo = Drive folder (one shared 10 GB pool)
 
+  // ---------- keep running in the background: window minimized, other tab, screen off ----------
+  // Pages without the portal sign-in can load only this part: <script src="/amatu.js" data-bg-only></script>
+  if (!isPortal) keepRunning();
+  if (document.currentScript && document.currentScript.hasAttribute('data-bg-only')) return;
+  function keepRunning() {
+    // 1. Timers. Browsers slow a hidden page's timers to one per second, later one per minute. Worker timers are not
+    //    slowed, so while hidden a worker tick runs every timer that is due. The native timers stay in place and the
+    //    ids stay native, so clearing works as usual and a visible page behaves exactly as before.
+    const nST = window.setTimeout, nCT = window.clearTimeout, nSI = window.setInterval, nCI = window.clearInterval;
+    const due = new Map();
+    window.setTimeout = function (f, ms, ...a) {
+      if (typeof f !== 'function') return nST.call(window, f, ms, ...a);
+      const d = +ms || 0;
+      const id = nST.call(window, () => { due.delete(id); f.apply(window, a); }, d);
+      due.set(id, { f, a, at: performance.now() + d, ms: 0 });
+      return id;
+    };
+    window.setInterval = function (f, ms, ...a) {
+      if (typeof f !== 'function') return nSI.call(window, f, ms, ...a);
+      const d = Math.max(+ms || 0, 4), t = { f, a, at: performance.now() + d, ms: d, ticked: false };
+      const id = nSI.call(window, () => {
+        const n = performance.now();
+        if (t.ticked && n < t.at - d / 2) return;   // the worker tick already ran this beat
+        t.ticked = false; t.at = n + d;
+        f.apply(window, a);
+      }, d);
+      due.set(id, t);
+      return id;
+    };
+    window.clearTimeout = function (id) { due.delete(id); nCT.call(window, id); };
+    window.clearInterval = function (id) { due.delete(id); nCI.call(window, id); };
+    function tick() {
+      const n = performance.now();
+      for (const [id, t] of [...due]) {
+        if (t.at > n || !due.has(id)) continue;
+        if (t.ms) { t.at = n + t.ms; t.ticked = true; } else { due.delete(id); nCT.call(window, id); }
+        try { t.f.apply(window, t.a); } catch (e) { console.error(e); }
+      }
+    }
+    // 2. Freezing. Chrome freezes a tab hidden for 5 minutes unless it holds a Web Lock (held only while hidden, so
+    //    navigation and the back-forward cache are untouched).
+    const lockName = 'amatu-bg-' + Math.random().toString(36).slice(2);
+    let worker = null, release = null;
+    function onHidden() {
+      if (!worker) try {
+        worker = new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),200)'], { type: 'text/javascript' })));
+        worker.onmessage = tick;
+      } catch (e) { worker = null; }
+      if (navigator.locks && !release) navigator.locks.request(lockName, () => document.hidden ? new Promise(r => { release = r; }) : null).catch(() => { });
+    }
+    function onVisible() {
+      if (worker) { worker.terminate(); worker = null; }
+      if (release) { release(); release = null; }
+      tick();
+    }
+    document.addEventListener('visibilitychange', () => { document.hidden ? onHidden() : onVisible(); });
+    if (document.hidden) onHidden();
+    // 3. Phones. A phone stops all JavaScript once the screen is off, unless the page is playing audio. So apps play an
+    //    inaudible loop (started by the first tap, browsers require one). Portal setting "Tetap berjalan saat layar mati".
+    //    Not in Playlist (it plays real music) nor the Guitar tuner (uses the microphone).
+    const ua = navigator.userAgent;
+    const phone = /iPhone|iPad|iPod|Android/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!phone || APP === 'playlist' || APP === 'guitars') return;
+    const jg = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+    const a = new Audio();
+    let wav = '', stopped = false, quietUntil = 0;
+    function loop() {   // 30 Hz sine at -66 dBFS: too low and too quiet to hear, but a browser counts it as playing audio
+      const rate = 8000, n = rate, b = new DataView(new ArrayBuffer(44 + n * 2)), u8 = new Uint8Array(b.buffer);
+      const tag = (at, t) => { for (let i = 0; i < 4; i++) u8[at + i] = t.charCodeAt(i); };
+      tag(0, 'RIFF'); b.setUint32(4, 36 + n * 2, true); tag(8, 'WAVE'); tag(12, 'fmt '); b.setUint32(16, 16, true);
+      b.setUint16(20, 1, true); b.setUint16(22, 1, true); b.setUint32(24, rate, true); b.setUint32(28, rate * 2, true);
+      b.setUint16(32, 2, true); b.setUint16(34, 16, true); tag(36, 'data'); b.setUint32(40, n * 2, true);
+      for (let i = 0; i < n; i++) b.setInt16(44 + i * 2, Math.round(16 * Math.sin(2 * Math.PI * 30 * i / rate)), true);
+      let bin = ''; for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+      return 'data:audio/wav;base64,' + btoa(bin);
+    }
+    function otherAudio() {   // Playlist playing in another tab: a second audio source could pause it
+      const p = jg('pt.pl.pos');
+      return Date.now() < quietUntil || !!(p && p.live && p.on && Date.now() - p.at < 12000);
+    }
+    function start() {
+      const p = jg('amatu.portal');
+      if (stopped || !a.paused || (p && p.bg === '0') || otherAudio()) return;
+      if (!wav) { wav = loop(); a.loop = true; a.src = wav; }
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { }
+      a.play().then(() => {
+        if (!('mediaSession' in navigator)) return;
+        const ms = navigator.mediaSession;
+        ms.metadata = new MediaMetadata({ title: document.title || 'AMATU', artist: 'Berjalan di latar belakang' });
+        try { ms.setActionHandler('pause', () => { stopped = true; a.pause(); }); ms.setActionHandler('play', () => { stopped = false; a.play().catch(() => { }); }); } catch { }
+      }).catch(() => { });
+    }
+    if ('BroadcastChannel' in window) new BroadcastChannel('amatu-audio').onmessage = () => { quietUntil = Date.now() + 12000; a.pause(); };
+    ['touchend', 'click', 'keydown'].forEach(ev => addEventListener(ev, start, { capture: true, passive: true }));
+  }
+
   // ---------- raw storage (never tracked) ----------
   const LS = window.localStorage;
   const SP = Storage.prototype;
@@ -479,10 +575,10 @@
     ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, touch, { passive: true, capture: true }));
     addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') { jset('pt.dirty', dirty); flush().catch(() => { }); }
-      else if (!unlocked()) goPortal();
+      else softLock();
     });
     addEventListener('pagehide', () => jset('pt.dirty', dirty));
-    setInterval(() => { if (!unlocked() && document.visibilityState === 'visible') goPortal(); }, 30000);
+    setInterval(softLock, 30000);
     // Another device may have changed this account since this device last synced: apply, then reload once.
     const s = sess();
     rpc('amt_status', { p_token: s.t }).then(async st => {
@@ -497,6 +593,59 @@
     listeners.push(kind => { if (kind === 'remote') banner(); });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', homeButton); else homeButton();
     fitInit();
+  }
+  // Idle lock over the running app instead of a reload: music, live data and open work keep going behind the PIN.
+  let pinBox = null;
+  function softLock() {
+    if (pinBox) { if (unlocked()) unlockBox(); return; }
+    if (unlocked() || document.visibilityState !== 'visible') return;
+    const s = sess();
+    if (!s || owner() !== s.u || lget('pt.haspin') !== s.u) return goPortal();   // signed out, other account, no PIN yet
+    let pin = '', busy = false;
+    const box = pinBox = document.createElement('div');
+    box.id = 'amatu-pin';
+    box.innerHTML = `<style>#amatu-pin{position:fixed;inset:0;z-index:2147483646;background:#0b0d12;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font:500 15px/1.3 -apple-system,system-ui,sans-serif;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+      #amatu-pin .d{display:flex;gap:16px;height:14px}#amatu-pin .d i{width:13px;height:13px;border-radius:50%;border:1.5px solid #fff}#amatu-pin .d i.on{background:#fff}
+      #amatu-pin .e{min-height:19px;font-size:13px;color:#ff8a80;text-align:center}
+      #amatu-pin .p{display:grid;grid-template-columns:repeat(3,72px);gap:14px}
+      #amatu-pin button{width:72px;height:72px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font:400 28px -apple-system,system-ui,sans-serif;cursor:pointer}
+      #amatu-pin button:active{background:rgba(255,255,255,.34)}#amatu-pin button.t{background:none;font-size:14px}</style>
+      <div>Masukkan Kode Sandi</div><div class="d"><i></i><i></i><i></i><i></i></div><div class="e"></div>
+      <div class="p">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-n="${n}">${n}</button>`).join('')}<button class="t" data-a="portal">Portal</button><button data-n="0">0</button><button class="t" data-a="del">Hapus</button></div>`;
+    const err = box.querySelector('.e'), dots = [...box.querySelectorAll('.d i')];
+    const paint = () => dots.forEach((d, i) => d.classList.toggle('on', i < pin.length));
+    async function check() {
+      busy = true;
+      try {
+        const r = await rpc('amt_pin', { p_token: s.t, p_pin: pin });
+        if (r.locked) { ldel('pt.sess'); return goPortal(); }
+        if (!r.ok) { err.textContent = 'Kode sandi salah. Sisa ' + r.left + ' percobaan.'; navigator.vibrate && navigator.vibrate([30, 40, 30]); return; }
+        jset('pt.unlock', { u: s.u, at: Date.now() });
+        unlockBox();
+      } catch (e) {
+        if (e.code === 'auth') return goPortal();
+        err.textContent = 'Tidak bisa memeriksa kode sandi. Periksa koneksi.';
+      } finally { busy = false; pin = ''; paint(); }
+    }
+    const press = n => { if (busy || pin.length >= 4) return; err.textContent = ''; pin += n; paint(); if (pin.length === 4) setTimeout(check, 120); };
+    const del = () => { if (!busy) { pin = pin.slice(0, -1); paint(); } };
+    box.onclick = e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.n) press(b.dataset.n); else if (b.dataset.a === 'del') del(); else goPortal();
+    };
+    box.keys = e => {   // nothing reaches the app behind the lock
+      if (e.metaKey || e.ctrlKey) return;
+      e.stopImmediatePropagation(); e.preventDefault();
+      if (/^[0-9]$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') del();
+    };
+    addEventListener('keydown', box.keys, true);
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    document.documentElement.appendChild(box);
+  }
+  function unlockBox() {
+    if (!pinBox) return;
+    removeEventListener('keydown', pinBox.keys, true);
+    pinBox.remove(); pinBox = null; lastTouch = 0;
   }
   function homeButton() {
     const css = document.createElement('style');
