@@ -614,6 +614,8 @@ const ART = {
     '<path d="M43 29v22l18-11z" fill="#0a7ea6" stroke="#0a7ea6" stroke-width="3" stroke-linejoin="round"/>' +
     '<rect x="14" y="68" width="30" height="14" rx="4" fill="#ffd23f"/><rect x="47" y="68" width="39" height="14" rx="4" fill="#fff" opacity=".92"/><rect x="47" y="72" width="39" height="6" fill="#0a7ea6" opacity=".35"/>' +
     '<rect x="42.500" y="62" width="3" height="26" rx="1.500" fill="#f43f5e"/><path d="M38 62h12l-6 7z" fill="#f43f5e"/>',
+  shortlink: () => bgG('#7f7dff', '#3a2fc4') +
+    '<g transform="rotate(-45 50 50)" fill="none" stroke-width="9.5"><rect x="15" y="37" width="40" height="26" rx="13" stroke="#fff"/><rect x="45" y="37" width="40" height="26" rx="13" stroke="#ffd23f"/><path d="M45 37h4a13 13 0 0 1 6 1.500" stroke="#fff" stroke-linecap="butt"/></g>',
   pdf: () => bgG('#ff6b5e', '#c81e1e') +
     '<rect x="25" y="16" width="50" height="68" rx="6" fill="#7f1414" opacity=".3" transform="translate(0 2.5)"/>' +
     '<path d="M31 16h27l17 17v45a6 6 0 0 1-6 6H31a6 6 0 0 1-6-6V22a6 6 0 0 1 6-6z" fill="#fff"/><path d="M58 16l17 17H62a4 4 0 0 1-4-4z" fill="#fecaca"/>' +
@@ -641,7 +643,7 @@ const ART = {
 // colour behind the zoom-open animation (roughly the icon's own background)
 const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', corel: '#4cba57',
   photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
-  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', presentation: '#f58a1f', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', pdf: '#e5322d', playlist: '#15a98c', capcut: '#0ea5c0', settings: '#b4b4ba' };
+  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', presentation: '#f58a1f', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', pdf: '#e5322d', playlist: '#15a98c', capcut: '#0ea5c0', shortlink: '#4338ca', settings: '#b4b4ba' };
 const artCache = {};
 function artSrc(id) {
   const k = id === 'planner' ? id + new Date().toDateString() : id;
@@ -680,7 +682,8 @@ const APPS = [
   { id: 'enhance', name: 'Enhance HD', icon: 'enhance', c: 9, d: 'Tingkatkan kualitas & resolusi foto hingga 4K/8K dengan AI: detail wajah, alis, rambut, warna' },
   { id: 'capcut', name: 'Amatu Cut', icon: 'capcut', c: 16, d: 'Edit video lengkap: template otomatis, transisi, lagu, teks, keyframe, edit suara, ekspor 4K' },
   { id: 'pdf', name: 'Amatu PDF', icon: 'pdf', c: 4, d: 'Buka, edit, gabung, susun, tanda tangan, watermark, kompres & tingkatkan resolusi PDF' },
-  { id: 'playlist', name: 'Amatu Playlist', icon: 'music', c: 1, d: 'Putar lagu YouTube & Spotify: playlist Pop Indonesia, Pop Jazz, hits, radio, lirik & EQ' }
+  { id: 'playlist', name: 'Amatu Playlist', icon: 'music', c: 1, d: 'Putar lagu YouTube & Spotify: playlist Pop Indonesia, Pop Jazz, hits, radio, lirik & EQ' },
+  { id: 'shortlink', name: 'Shortlink', icon: 'link', c: 2, d: 'Perpendek link apa pun, klik untuk menyalin, dan ubah link jadi QR Code atau barcode' }
 ];
 const COLORS = [
   ['#60a5fa', '#1d4ed8'], ['#4ade80', '#15803d'], ['#fcd34d', '#d97706'], ['#2dd4bf', '#0f766e'],

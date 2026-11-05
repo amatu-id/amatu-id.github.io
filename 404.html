@@ -3,10 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
 <title>Portal AMATU</title>
-<script>location.replace('/');</script>
+<script>
+// Short links from amatu-id.github.io/shortlink: /<code> opens the saved address.
+// Codes always hold an uppercase letter or digit; anything else is an old address and goes to the portal.
+(function () {
+  var code = location.pathname.slice(1).replace(/\/$/, '');
+  if (!/^[A-Za-z0-9]{1,8}$/.test(code) || !/[A-Z0-9]/.test(code)) { location.replace('/'); return; }
+  var KEY = 'sb_publishable_o-PQxhkJJ8FG4mHYTUqEBw_uXv9n-eG';
+  function missing() {
+    document.documentElement.classList.add('none');
+  }
+  fetch('https://ieyqxmzztoxgpvwexbkj.supabase.co/rest/v1/rpc/sl_get', {
+    method: 'POST',
+    headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_code: code })
+  }).then(function (r) { return r.json(); }).then(function (u) {
+    if (typeof u === 'string' && /^https?:\/\//i.test(u)) location.replace(u); else missing();
+  }).catch(missing);
+})();
+</script>
+<style>
+body{font:15px -apple-system,system-ui,sans-serif;display:grid;place-items:center;height:100vh;margin:0}
+p{display:none}
+.none p{display:block}
+</style>
 </head>
-<body style="font:15px -apple-system,system-ui,sans-serif;display:grid;place-items:center;height:100vh;margin:0">
-<p>Halaman tidak ditemukan. <a href="/">Buka Portal AMATU</a></p>
+<body>
+<p>Link tidak ditemukan. <a href="/">Buka Portal AMATU</a></p>
 </body>
 </html>

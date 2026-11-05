@@ -694,7 +694,7 @@
   // the page reloads itself as soon as nothing is lost by it. Only for data this page really uses.
   // QUIET: apps that update themselves (own server sync, Playlist, Games) or tools where a reload would stop running work.
   // ASK: audio apps, a reload would cut the sound.
-  const QUIET = /^(saku|notes|planner|calc|english|mandarin|playlist|games|btcusdt|downloader|background|enhance|scan|totext|collage|pdf|capcut)$/;
+  const QUIET = /^(saku|notes|planner|calc|english|mandarin|playlist|games|btcusdt|downloader|background|enhance|scan|totext|collage|pdf|capcut|shortlink)$/;
   const ASK = /^(guitars|piano)$/;
   function announce(keys) {
     for (const k of keys) if (k.startsWith('ls:')) {
