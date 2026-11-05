@@ -8,7 +8,7 @@
 
   const SB_URL = 'https://ieyqxmzztoxgpvwexbkj.supabase.co';
   const SB_KEY = 'sb_publishable_o-PQxhkJJ8FG4mHYTUqEBw_uXv9n-eG';
-  const VER = '2026-11-04-sync2';
+  const VER = '2026-11-05-saku-ops';
   const PORTAL = '/';
   const DRIVE_FN = SB_URL + '/functions/v1/amatu-drive/';
   const MAX_ROW = 25000000;     // bigger records stay on this device only
@@ -125,7 +125,7 @@
   // Data these apps sync themselves, with their own server copy and merge: the Saku book + its merge base, and the item
   // caches + read cursors of Notes, Planner, Calc, English and Mandarin. Syncing them here as well made one device's merge
   // base or cursor land on another device, so entries vanished and came back. These keys stay on the device.
-  const ownSync = /^(sakumac\.u\..+\.(ledger|before-change|syncbase2?|massok)|sakumac\.ledger\.(v1|before-change)|(notes|planner|calc|english|mandarin)\.(u\..+|admin)\.(items|seq|queue))$/;
+  const ownSync = /^(sakumac\.u\..+\.(ledger|before-change|syncbase2?|syncq|massok)|sakumac\.ledger\.(v1|before-change)|(notes|planner|calc|english|mandarin)\.(u\..+|admin)\.(items|seq|queue))$/;
   const noSync = k => local(k) || ownSync.test(k);
   const lsKeys = () => { const a = []; try { for (let i = 0; i < LS.length; i++) { const k = LS.key(i); if (k != null) a.push(k); } } catch { } return a; };
 
