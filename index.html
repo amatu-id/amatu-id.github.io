@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Portal AMATU</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f172a'/%3E%3Cpath d='M18 48 32 14l14 34M23 37h18' fill='none' stroke='%23fbbf24' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<script src="/amatu.js"></script>
+<script src="/amatu.js?v=20261106"></script>
 <script>
 (function () {
   var r = document.documentElement;
@@ -125,7 +125,14 @@ svg{display:block}
 .pad button.t{background:none;backdrop-filter:none;-webkit-backdrop-filter:none;font-size:16px;font-weight:500}
 .lk-bot{display:flex;gap:18px}
 .lk-l{border:0;background:none;color:#fff;font-size:15px;font-weight:500;cursor:pointer;padding:8px;opacity:.9}
-.lk-load{margin:auto;text-align:center;font-weight:500;opacity:.92}
+.lk-load{margin:auto;text-align:center;font-weight:500;color:#fff;max-width:320px;padding:24px 28px;border-radius:24px;background:rgba(14,17,26,.62);-webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4)}
+.lk-load small{display:block;margin-top:6px;font-weight:400;font-size:13px;opacity:.72}
+.lk-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.2);margin:14px auto 0;width:200px;overflow:hidden}
+.lk-bar i{display:block;height:100%;width:0;background:#fff;border-radius:2px;transition:width .3s}
+.lk-load button{all:unset;cursor:pointer;margin-top:18px;padding:8px 18px;border-radius:999px;background:rgba(255,255,255,.16);font-size:14px;display:inline-block}
+.dlp{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:500;color:var(--fg);background:var(--dock);border:1px solid var(--gline);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);white-space:nowrap}
+.dlp[hidden]{display:none}
+.dlp i{width:10px;height:10px;border-radius:50%;border:2px solid color-mix(in srgb,currentColor 28%,transparent);border-top-color:currentColor;animation:sp .8s linear infinite}
 
 /* ---------- home (springboard) ---------- */
 .home{position:fixed;inset:0;display:flex;flex-direction:column;padding-bottom:calc(env(safe-area-inset-bottom) + 12px);transform-origin:50% 50%;user-select:none;-webkit-user-select:none}
@@ -931,10 +938,40 @@ async function openAccount(u) {
     if (e.code === 'auth') { A.ldel('pt.sess'); gateMsg = ERR.auth; return gate(); }
     toast('Sinkron tertunda: ' + errText(e));
   }
+  if (!A.sess()) return;   // the session turned out to be gone: the sign-in form is showing
   P = load(); theme();
   const n = nextUrl();
-  if (n) { location.replace(n); return; }
+  if (n) return openNext(n);
   home(true);
+}
+// An app was asked for (sign-in from inside it, or its data has not reached this device yet): bring in what it needs, then go.
+const appOf = href => (href.split(/[?#]/)[0].split('/')[1] || '').toLowerCase();
+async function openNext(n) {
+  const id = appOf(n);
+  if (A.ready(id)) { location.replace(n); return; }
+  const it = (typeof APPS !== 'undefined' ? APPS : []).find(a => a.id === id), name = (it && it.name) || 'aplikasi';
+  loading('Menyiapkan data ' + name + '…');
+  let leftNow = false;
+  const box = $('.lk-load');
+  box.insertAdjacentHTML('beforeend', '<div class="lk-bar"><i id="lb"></i></div><small id="ls"></small><button id="lh">Kembali ke Portal</button>');
+  $('#lh').onclick = () => { leftNow = true; A.rtStart(); P = load(); theme(); home(true); };
+  A.rtStart();
+  for (let wait = 2000; !leftNow;) {
+    try {
+      await A.prepare(id, x => {
+        const b = $('#lb'), l = $('#ls'); if (!b || leftNow) return;
+        b.style.width = (x.total ? Math.round((x.total - x.left) / x.total * 100) : 100) + '%';
+        l.textContent = x.left ? fmtB(x.left) + ' lagi' : '';
+      });
+      if (!leftNow) location.replace(n);
+      return;
+    } catch (e) {
+      if (leftNow) return;
+      if (e.code === 'auth') { A.ldel('pt.sess'); gateMsg = ERR.auth; return gate(); }
+      const l = $('#ls'); if (l) l.textContent = (navigator.onLine ? 'Koneksi lambat' : 'Tidak ada internet') + ', mencoba lagi…';
+      await new Promise(r => setTimeout(r, wait)); wait = Math.min(15000, wait * 2);
+    }
+  }
 }
 
 // ---------- home (springboard) ----------
@@ -951,6 +988,7 @@ function home(intro) {
     '<button class="avbtn" id="me" title="' + esc(s.u) + '">' + esc(s.u[0].toUpperCase()) + '</button></div></header>' +
     '<main id="grid"></main>' +
     '<div class="prow"><div class="pill" id="pill"><button class="tbtn" id="pls" style="all:unset;display:flex;align-items:center;gap:6px;cursor:pointer">' + svg('search', 2.4) + '<span id="plt">Cari</span></button><span id="pdots"></span></div>' +
+    '<div class="dlp" id="dlp" hidden><i></i><span id="dlt"></span></div>' +
     '<button class="eb" id="eadd">' + svg('plus', 2.4) + 'Pintasan</button><button class="eb done" id="done">Selesai</button></div>' +
     '<nav class="dock" id="dockbar"><div class="dk" id="dock"></div><i class="dsep" hidden></i><div class="dk" id="recents"></div></nav></div>';
   const g = $('#grid');
@@ -975,7 +1013,7 @@ function home(intro) {
   $('#sync').onclick = syncSheet;
   relayout();
   tick(); homeTimers.push(setInterval(tick, 1000));
-  syncDot(); homeTimers.push(setInterval(syncDot, 2000));
+  syncDot(); homeTimers.push(setInterval(syncDot, 1500));
   homeTimers.push(setInterval(() => { if (document.visibilityState === 'visible') A.pull().then(r => r.changed && refresh()).catch(() => { }); }, 30000));
   homeTimers.push(setInterval(() => { if (!A.unlocked()) lockNow(); }, 15000));
   A.pull().then(r => r.changed && refresh()).catch(() => { });
@@ -1006,11 +1044,16 @@ function tick() {
 }
 function syncDot() {
   const el = $('#sync'); if (!el) return;
-  const n = A.pending(), on = navigator.onLine;
+  const n = A.pending(), on = navigator.onLine, dl = A.downloads();
+  const dp = $('#dlp');
+  if (dp) {
+    dp.hidden = !(dl.first || dl.left > 2097152);    // small updates from another device pass unnoticed
+    if (!dp.hidden) $('#dlt').textContent = (on ? 'Mengunduh data' : 'Menunggu internet') + (dl.max ? ' ' + Math.min(99, Math.round((dl.max - dl.left) / dl.max * 100)) + '%' : '');
+  }
   el.className = 'sync' + (n ? (on ? ' wait' : ' bad') : '');
   el.title = n ? n + ' perubahan menunggu sinkron' : 'Tersinkron';
   $$('.tile[data-id=settings] .badge').forEach(b => { b.hidden = !n; b.textContent = n > 99 ? '99+' : n; });
-  const st = $('#wsT'); if (st) st.innerHTML = n ? n + ' menunggu' + (on ? '' : ' · <em>offline</em>') : 'Tersinkron';
+  const st = $('#wsT'); if (st) st.innerHTML = n ? n + ' menunggu' + (on ? '' : ' · <em>offline</em>') : dl.first || dl.left > 2097152 ? 'Mengunduh data' : 'Tersinkron';
   // Ring = the shared Drive pool of the Portal (amt_usage: used bytes of total_mb).
   if (use) {
     const cap = use.total_mb * 1048576, pct = cap ? Math.min(100, use.used / cap * 100) : 0, [v, u] = fmtB(use.used).split(' ');
@@ -1160,14 +1203,15 @@ function openItem(id, from) {
   P.recent = [{ id, at: Date.now() }].concat((P.recent || []).filter(r => r.id !== id)).slice(0, 8);
   save();
   if (it.link) { window.open(it.href, '_blank', 'noopener'); renderTiles(); return; }
-  if (!STANDALONE && openTab(id, it.href)) {
+  const ok = A.ready(appOf(it.href)), gateUrl = '/?next=' + encodeURIComponent(it.href);
+  if (!STANDALONE && openTab(id, ok ? it.href : gateUrl)) {
     if ($('#spot')) closeSpot();
     if (from && !RM) from.animate([{ transform: 'scale(.86)' }, { transform: 'none' }], { duration: 260, easing: EASE });
     A.flush().catch(() => { }); renderTiles(); return;
   }
   opening = true;
   try { sessionStorage.setItem('pt.open', JSON.stringify({ id, at: Date.now() })); } catch { }
-  Promise.all([zoomOpen(it, from), A.flush().catch(() => { })]).finally(() => { location.href = it.href; });
+  Promise.all([zoomOpen(it, from), A.flush().catch(() => { })]).finally(() => { location.href = ok ? it.href : gateUrl; });
 }
 // in a browser every app gets its own tab so the portal tab stays open; one tab per app (named window):
 // a second tap brings the existing tab back instead of reloading it. The Home Screen app (standalone)
@@ -1697,6 +1741,7 @@ async function logout() {
 
 // ---------- live updates ----------
 A.on(kind => {
+  if (kind === 'auth') { A.ldel('pt.sess'); A.ldel('pt.haspin'); gateMsg = ERR.auth; closeSheet(); return gate(); }
   if (!A.unlocked() || !$('#grid')) return;
   if (kind === 'remote') A.pull().then(r => r.changed && refresh()).catch(() => { });
   else refresh();
@@ -1715,7 +1760,7 @@ async function boot() {
   const s = A.sess();
   if (!s) return gate();
   if (A.unlocked()) {
-    const n = nextUrl(); if (n) { location.replace(n); return; }
+    const n = nextUrl(); if (n) return openNext(n);
     A.rtStart(); return home();
   }
   const knew = A.lget('pt.haspin') === s.u;

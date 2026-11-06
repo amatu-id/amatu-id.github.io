@@ -8,7 +8,7 @@
 
   const SB_URL = 'https://ieyqxmzztoxgpvwexbkj.supabase.co';
   const SB_KEY = 'sb_publishable_o-PQxhkJJ8FG4mHYTUqEBw_uXv9n-eG';
-  const VER = '2026-11-05-saku-ops';
+  const VER = '2026-11-06-bg-load';
   const PORTAL = '/';
   const DRIVE_FN = SB_URL + '/functions/v1/amatu-drive/';
   const MAX_ROW = 25000000;     // bigger records stay on this device only
@@ -192,13 +192,19 @@
     if (k && s && k.u === s.u && now - k.at < idleMin() * 60000) jset('pt.unlock', { u: k.u, at: now });
   }
 
+  // A request on a bad connection can hang without ever failing: nothing here waits longer than ms (the body included).
+  async function timed(url, opt, ms, read) {
+    const c = new AbortController(), timer = setTimeout(() => c.abort(), ms);
+    try { const r = await fetch(url, { ...opt, signal: c.signal }); return [r, await read(r)]; }
+    catch (e) { if (c.signal.aborted) { const x = new Error('net'); x.code = 'net'; x.timeout = true; throw x; } throw e; }
+    finally { clearTimeout(timer); }
+  }
   async function rpc(fn, args) {
-    const r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {
+    const [r, txt] = await timed(SB_URL + '/rest/v1/rpc/' + fn, {
       method: 'POST',
       headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify(args || {})
-    });
-    const txt = await r.text();
+    }, 30000, x => x.text());
     let j = null; try { j = txt ? JSON.parse(txt) : null; } catch { }
     if (!r.ok) { const e = new Error((j && j.message) || ('HTTP ' + r.status)); e.code = (j && j.message) || 'net'; throw e; }
     return j;
@@ -206,10 +212,10 @@
   const tok = () => { const s = sess(); return s && s.t; };
   async function drive(route, body) {
     const payload = JSON.stringify(body || {}), opt = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload };
-    let r;   // keepalive: a small push still arrives when the page is closed or the phone goes to sleep right after an edit
-    if (payload.length < 50000) { try { r = await fetch(DRIVE_FN + route, { ...opt, keepalive: true }); } catch { } }
-    if (!r) r = await fetch(DRIVE_FN + route, opt);
-    let j = null; try { j = await r.json(); } catch { }
+    const ms = route === 'push' || route === 'get' ? 120000 : 30000, read = x => x.json().catch(() => null);
+    let r, j = null;   // keepalive: a small push still arrives when the page is closed or the phone goes to sleep right after an edit
+    if (route === 'push' && payload.length < 50000) { try { [r, j] = await timed(DRIVE_FN + route, { ...opt, keepalive: true }, ms, read); } catch (e) { if (e.timeout) throw e; } }
+    if (!r) [r, j] = await timed(DRIVE_FN + route, opt, ms, read);
     if (!r.ok) { const e = new Error((j && j.error) || ('HTTP ' + r.status)); e.code = (j && j.error) || 'net'; throw e; }
     return j;
   }
@@ -292,7 +298,7 @@
   function dirtyAll() { const d = Object.assign({}, dirty); for (const f of dirtyFiles()) if (f !== DK) Object.assign(d, fileMap(jget(f, null))); return d; }
   const tracking = () => { const s = sess(); return !!(s && owner() === s.u); };
   function mark(k) {
-    if (!tracking()) return;
+    if (!tracking() || gated || waiting(k)) return;
     dirty[k] = ++dseq;
     lastWrite = Date.now();
     clearTimeout(dSaveT); dSaveT = setTimeout(dirtySave, 50);
@@ -385,12 +391,12 @@
       throw e;
     }).finally(() => {
       flushing = null;
-      if (!flushFails && !flushQueued && tok() && tracking() && Object.keys(dirty).length) flushT = setTimeout(flushNow, 200);
+      if (!flushFails && !flushQueued && tok() && tracking() && !fresh() && Object.keys(dirty).length) flushT = setTimeout(flushNow, 200);
     });
     return flushing;
   }
   async function doFlush() {
-    const t = tok(); if (!t || !tracking()) return { pushed: 0 };
+    const t = tok(); if (!t || !tracking() || fresh()) return { pushed: 0 };   // first the index: doPull flushes when it is done
     const snap = Object.assign({}, dirty), keys = Object.keys(snap);
     if (!keys.length) return { pushed: 0 };
     const rows = [], big = jget('pt.big', {});
@@ -401,6 +407,7 @@
     };
     const remoteKeys = async prefix => new Set(await rpc('amt_keys', { p_token: t, p_prefix: prefix }));
     const addVal = (k, s) => {
+      if (pendFirst(k)) return;
       if (s.length > MAX_ROW) { big[k] = s.length; return; }
       delete big[k]; rows.push({ k, v: s });
     };
@@ -410,7 +417,7 @@
         if (k === 'lsall') {
           const have = new Set();
           for (const lk of lsKeys()) if (!noSync(lk)) { have.add('ls:' + lk); addVal('ls:' + lk, lget(lk) || ''); }
-          for (const rk of await remoteKeys('ls:')) if (!have.has(rk) && !noSync(rk.slice(3))) rows.push({ k: rk, d: true });
+          for (const rk of await remoteKeys('ls:')) if (!have.has(rk) && !noSync(rk.slice(3)) && !pendFirst(rk)) rows.push({ k: rk, d: true });
         } else if (k.startsWith('ls:')) {
           if (snap.lsall) continue;
           const v = lget(k.slice(3));
@@ -421,7 +428,7 @@
         } else if (k.startsWith('idbdb|')) {
           const name = D(k.slice(6));
           if (await getDb(name)) continue;          // re-created since
-          for (const rk of await remoteKeys('idb|' + E(name) + '|')) rows.push({ k: rk, d: true });
+          for (const rk of await remoteKeys('idb|' + E(name) + '|')) if (!pendFirst(rk)) rows.push({ k: rk, d: true });
           rows.push({ k: 'idbschema|' + E(name), d: true });
         } else if (k.startsWith('idbs|')) {
           const [dbn, stn] = k.slice(5).split('|').map(D);
@@ -429,7 +436,7 @@
           if (db && db.objectStoreNames.contains(stn)) {
             for (const r of await storeRows(db, stn)) { const rk = idbK(dbn, stn, r.key); have.add(rk); addVal(rk, JSON.stringify(await enc(r.value))); }
           }
-          for (const rk of await remoteKeys('idb|' + E(dbn) + '|' + E(stn) + '|')) if (!have.has(rk)) rows.push({ k: rk, d: true });
+          for (const rk of await remoteKeys('idb|' + E(dbn) + '|' + E(stn) + '|')) if (!have.has(rk) && !pendFirst(rk)) rows.push({ k: rk, d: true });
         } else if (k.startsWith('idb|')) {
           const p = k.split('|'), dbn = D(p[1]), stn = D(p[2]);
           if (stores.has(p[1] + '|' + p[2])) continue;
@@ -471,40 +478,159 @@
       if (pullAgain) { pullAgain = false; pull().catch(() => { }); }
     });
   }
+  // Reading the index is quick whatever the size of the account. Values kept in Google Drive are only noted (pt.pend) and
+  // downloaded afterwards, in the background, so opening the portal never waits for them.
   async function doPull() {
     const t = tok(); if (!t || !tracking()) return { changed: 0 };
+    const g = gen, first = fresh();   // first: this device has no copy of anything yet
     let changed = 0, more = true, guard = 0;
     const keys = new Set();
     while (more && guard++ < 500) {
-      const r = await rpc('amt_pull2', { p_token: t, p_after: cur() });
-      const all = r.rows || [], rows = all.filter(x => !(x.k.startsWith('ls:') && noSync(x.k.slice(3))));
-      const need = rows.filter(x => x.g && !x.d && x.o !== DEV);
-      let upto = r.last;
-      if (need.length) {         // values kept in Google Drive
-        const got = await drive('get', { t, ids: need.map(x => x.g) });
-        for (const x of need) x.v = got.v[x.g];
-        // A file that could not be read: stop in front of it and read it again next time, never step over it. (It may have
-        // just been replaced, then the next pull brings the newer value.) Only a file that stays missing is given up on.
-        const tries = jget('pt.miss', {}), bad = need.filter(x => x.v == null && (tries[x.k] = (tries[x.k] || 0) + 1) <= 5);
-        for (const x of need) if (x.v != null) delete tries[x.k];
-        jset('pt.miss', tries);
-        if (bad.length) {
-          upto = Math.min(...bad.map(x => x.s)) - 1;
-          more = false;
-          clearTimeout(pullRetry); pullRetry = setTimeout(() => pull().catch(() => { }), 4000);
-        } else more = !!r.more;
-      } else more = !!r.more;
-      changed += await apply(rows.filter(x => (x.s == null || x.s <= upto) && (x.d || x.o === DEV || x.v != null)), keys);
-      if (upto > cur()) setCur(upto);
+      const r = await rpc('amt_pull3', { p_token: t, p_after: cur() });
+      if (g !== gen) return { changed: 0 };
+      const rows = (r.rows || []).filter(x => !(x.k.startsWith('ls:') && noSync(x.k.slice(3))));
+      const pend = jget('pt.pend', {}), now = [], dirtyNow = dirtyAll();
+      for (const x of rows) {
+        delete pend[x.k];                                // a newer state of this key replaces the one that was waiting
+        if (x.g && !x.d && x.o !== DEV) { if (!dirtyNow[x.k]) pend[x.k] = first ? { g: x.g, s: x.s, n: x.n || 0, a: x.a || '', f: 1 } : { g: x.g, s: x.s, n: x.n || 0, a: x.a || '' }; }
+        else if (x.d || x.o === DEV || x.v != null) now.push(x);
+      }
+      jset('pt.pend', pend);
+      changed += await apply(now, keys);
+      if (g !== gen) return { changed: 0 };
+      if (r.last > cur()) setCur(r.last);
+      more = !!r.more;
     }
+    if (first) { ldel('pt.fresh'); if (Object.keys(dirty).length) flushT = setTimeout(flushNow, 0); }
     lset('pt.synced', String(Date.now()));
-    if (keys.size) {
-      const list = [...keys];
-      bc && bc.postMessage({ t: 'pulled', keys: list });
-      announce(list);
-      reloadCheck(list);
-    }
+    told(keys);
+    drain();
     return { changed, keys: [...keys] };
+  }
+  function told(keys) {
+    if (!keys.size) return;
+    const list = [...keys];
+    bc && bc.postMessage({ t: 'pulled', keys: list });
+    announce(list);
+    reloadCheck(list);
+  }
+
+  // ---------- downloading what Google Drive holds, after the index ----------
+  let gen = 0, gated = false, draining = null, drainAt = 0, drainFails = 0, dlLimit = 3000000;
+  const fresh = () => { const o = owner(); return !!o && lget('pt.fresh') === o; };
+  // Not on this device yet: a write here must not reach the cloud as if it replaced the account's real data.
+  const pendFirst = k => { const p = jget('pt.pend', null); return !!(p && p[k] && p[k].f); };
+  const waiting = k => fresh() || pendFirst(k);
+  // History the app only reads on request. It may arrive while the app is in use: no reload for it.
+  const later = k => { if (!k.startsWith('idb|')) return false; const p = k.split('|'); try { return /^versions$/i.test(D(p[2])); } catch { return false; } };
+  const dbApp = k => {
+    if (!k.startsWith('idb|')) return '';
+    let n = ''; try { n = D(k.split('|')[1]); } catch { return ''; }
+    if (n === 'amatu-sheets') return 'spreadsheet';
+    const m = /^amatu-(.+)$/.exec(n); return m ? m[1] : '';
+  };
+  // Does this app need this waiting row before it can start? (a row adopted by the portal page carries app 'portal', so its database name decides)
+  const needs = (app, k, r) => r.f && !later(k) && (app === 'portal' ? k === 'ls:amatu.portal' : r.a === app || dbApp(k) === app);
+  const blockers = app => { const p = jget('pt.pend', {}); return Object.keys(p).filter(k => needs(app, k, p[k])); };
+  const ready = app => !fresh() && !blockers(app).length;
+  function downloads() {
+    const p = jget('pt.pend', {}), ks = Object.keys(p);
+    let left = 0, first = false; for (const k of ks) { left += p[k].n || 0; if (p[k].f) first = true; }
+    const max = Math.max(left, +(lget('pt.pendmax') || 0));
+    if (!ks.length) ldel('pt.pendmax'); else lset('pt.pendmax', String(max));
+    return { n: ks.length, left, max: ks.length ? max : 0, first };
+  }
+  // Downloads the waiting rows that match, two requests at a time, the smallest first and history last.
+  async function fetchPend(match, onStep) {
+    const t = tok(), g = gen, busyK = new Set(), tried = new Set();
+    let stop = null;
+    const take = () => {
+      const p = jget('pt.pend', {});
+      const list = Object.keys(p).filter(k => !busyK.has(k) && !tried.has(k) && match(k, p[k])).map(k => ({ k, ...p[k] }));
+      list.sort((a, b) => (later(a.k) - later(b.k)) || (a.n - b.n));
+      const out = []; let size = 0;
+      for (const x of list) {
+        if (out.length && (size + x.n > dlLimit || out.length >= 30)) break;
+        out.push(x); size += x.n; busyK.add(x.k); tried.add(x.k);
+      }
+      return out;
+    };
+    const worker = async () => {
+      for (;;) {
+        if (stop || g !== gen) return;
+        const part = take(); if (!part.length) return;
+        try {
+          const got = await drive('get', { t, ids: part.map(x => x.g) });
+          dlLimit = Math.min(3000000, dlLimit * 2);
+          if (g !== gen) return;
+          await keep(part, got.v || {}, g);
+          onStep && onStep();
+        } catch (e) {
+          if (e && e.timeout) dlLimit = Math.max(200000, dlLimit / 2);   // too slow for this much at once
+          stop = stop || e;
+          return;
+        } finally { part.forEach(x => busyK.delete(x.k)); }
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    if (stop) throw stop;
+  }
+  async function keep(part, vals, g) {
+    const p = jget('pt.pend', {}), tries = jget('pt.miss', {}), loud = [], quiet = [];
+    for (const x of part) {
+      if (!p[x.k] || p[x.k].g !== x.g) continue;         // replaced meanwhile, the newer one is waiting already
+      const v = vals[x.g];
+      if (v == null) {                                   // try again later; only a file that stays missing is given up on
+        tries[x.k] = (tries[x.k] || 0) + 1;
+        if (tries[x.k] > 5) { delete p[x.k]; delete tries[x.k]; console.warn('[amatu] berkas tidak ditemukan', x.k); }
+        continue;
+      }
+      delete tries[x.k];
+      (later(x.k) ? quiet : loud).push({ k: x.k, v, s: x.s });
+    }
+    jset('pt.pend', p); jset('pt.miss', tries);
+    const keys = new Set();
+    await apply(loud, keys); await apply(quiet, null);
+    if (g !== gen) return;
+    const q = jget('pt.pend', {});                       // removed only now: a reload in between repeats the download instead of losing it
+    for (const x of part) if (q[x.k] && q[x.k].g === x.g && (loud.some(r => r.k === x.k) || quiet.some(r => r.k === x.k))) delete q[x.k];
+    jset('pt.pend', q);
+    told(keys);
+  }
+  // Background download. Several tabs share one lease, so only one of them does it (a frozen tab's lease simply runs out).
+  const wanted = () => { const w = +(lget('pt.want') || 0); return !!w && Date.now() - w < 15000; };   // someone is waiting for an app: all the line is theirs
+  function drain() {
+    if (draining || !tok() || !tracking() || Date.now() < drainAt) return draining;
+    if (!Object.keys(jget('pt.pend', {})).length) { ldel('pt.pendmax'); return null; }
+    const l = jget('pt.drainer', null), me = DEV + ':' + TAB_ID;
+    if (l && l.id !== me && Date.now() - l.at < 20000) { clearTimeout(drainT); drainT = setTimeout(drain, 21000); return null; }
+    const lease = () => jset('pt.drainer', { id: me, at: Date.now() });
+    lease(); const li = setInterval(lease, 5000);
+    draining = fetchPend(() => !wanted()).then(() => { drainFails = 0; }, e => {
+      drainFails++; drainAt = Date.now() + Math.min(60000, 2000 * 2 ** (drainFails - 1));
+      console.warn('[amatu] unduh', e);
+    }).finally(() => {
+      clearInterval(li); ldel('pt.drainer'); draining = null;
+      if (tok() && Object.keys(jget('pt.pend', {})).length) { clearTimeout(drainT); drainT = setTimeout(drain, Math.max(4000, drainAt - Date.now())); }
+    });
+    return draining;
+  }
+  let drainT = 0;
+  const TAB_ID = Math.random().toString(36).slice(2, 10);
+  // Everything an app needs before it may start, in front of the rest. onStep({left, total}) reports the bytes.
+  async function prepare(app, onStep) {
+    const g = gen, beat = () => lset('pt.want', String(Date.now()));
+    beat(); const bt = setInterval(beat, 4000);
+    try {
+      if (fresh()) await pull();
+      if (g !== gen) return;
+      if (fresh()) await pull();                         // joined a read that started before a retry
+      const size = () => { const p = jget('pt.pend', {}); return blockers(app).reduce((a, k) => a + (p[k].n || 0), 0); };
+      const total = size();
+      onStep && onStep({ left: total, total });
+      await fetchPend((k, r) => needs(app, k, r), () => onStep && onStep({ left: size(), total }));
+      if (g === gen && !ready(app)) { const e = new Error('net'); e.code = 'net'; throw e; }
+    } finally { clearInterval(bt); ldel('pt.want'); }
   }
   async function apply(rows, keys) {
     let n = 0;
@@ -523,7 +649,8 @@
       } else if (r.k.startsWith('idb|')) {
         const p = r.k.split('|');
         if (dirtyNow[r.k] || dirtyNow['idbs|' + p[1] + '|' + p[2]]) continue;
-        (byDb[D(p[1])] = byDb[D(p[1])] || []).push({ st: D(p[2]), key: dec(JSON.parse(p.slice(3).join('|'))), r });
+        try { (byDb[D(p[1])] = byDb[D(p[1])] || []).push({ st: D(p[2]), key: dec(JSON.parse(p.slice(3).join('|'))), r }); }
+        catch (e) { console.warn('[amatu] kunci rusak', r.k, e); }   // one bad row must not hold up the others
       }
     }
     jset('pt.schemas', schemas);
@@ -538,9 +665,11 @@
           for (const x of byDb[name]) {
             if (!sts.includes(x.st)) continue;
             const s = tx.objectStore(x.st);
-            if (x.r.d) IDB.del.call(s, x.key);
-            else { const v = dec(JSON.parse(x.r.v)); s.keyPath != null ? IDB.put.call(s, v) : IDB.put.call(s, v, x.key); }
-            n++; keys && keys.add('db:' + name);
+            try {
+              if (x.r.d) IDB.del.call(s, x.key);
+              else { const v = dec(JSON.parse(x.r.v)); s.keyPath != null ? IDB.put.call(s, v) : IDB.put.call(s, v, x.key); }
+              n++; keys && keys.add('db:' + name);
+            } catch (e) { console.warn('[amatu] baris rusak', x.r.k, e); }
           }
           tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
         });
@@ -570,8 +699,9 @@
 
   // ---------- account switching ----------
   async function wipe() {
+    gen++;
     for (const k of lsKeys()) if (!local(k)) ldel(k);
-    for (const k of ['pt.cur', 'pt.schemas', 'pt.big', 'pt.synced', 'pt.miss', ...dirtyFiles()]) ldel(k);
+    for (const k of ['pt.cur', 'pt.schemas', 'pt.big', 'pt.synced', 'pt.miss', 'pt.pend', 'pt.pendmax', 'pt.fresh', 'pt.want', 'pt.drainer', ...dirtyFiles()]) ldel(k);
     dirty = {}; dseq = 0;
     for (const name of await dbNames()) {
       await new Promise(res => { const r = IDB.drop.call(indexedDB, name); r.onsuccess = r.onerror = res; r.onblocked = () => setTimeout(res, 3000); });
@@ -588,18 +718,26 @@
       db.close();
     }
   }
-  // Called by the portal after the PIN is verified.
+  // Called by the portal after the PIN is verified. Returns as soon as the portal can be shown: everything else carries on
+  // in the background. A device that has nothing yet waits a moment for the index, so the account's own layout comes up
+  // at once on a normal connection, but never longer than that.
   async function enter(u, onStep) {
-    const prev = owner();
+    const prev = owner(), first = prev !== u;
     jset('pt.unlock', { u, at: Date.now() });
-    if (prev !== u) {
+    if (first) {
       if (prev || !(await hasLocalData())) { onStep && onStep('Menyiapkan perangkat'); await wipe(); lset('pt.owner', u); setCur(0); }
       else { lset('pt.owner', u); setCur(0); await adopt(); }
+      lset('pt.fresh', u);
     }
     onStep && onStep('Memuat data akun');
-    await flush().catch(e => console.warn('[amatu] flush', e));
-    await pull();
+    flush().catch(e => console.warn('[amatu] flush', e));
+    const read = pull();
     rtStart();
+    const done = read.then(() => prepare('portal')).catch(e => {
+      console.warn('[amatu] pull', e);
+      if (e && e.code === 'auth') listeners.forEach(f => { try { f('auth'); } catch { } });
+    });
+    if (first) await Promise.race([done, new Promise(res => setTimeout(res, 2500))]);
   }
   const pending = () => Object.keys(dirtyAll()).length;
   async function leave(opts) {       // sign out: push what is left, then clear this device
@@ -667,6 +805,7 @@
     if (Object.keys(dirty).length && !flushing && !flushFails) flushNow();
     const st = await rpc('amt_status', { p_token: t });
     if (st && st.head > cur()) await pull();
+    else drain();
   }
   function livePoll() {
     clearTimeout(pollT);
@@ -770,6 +909,16 @@
       goPortal();
       return;
     }
+    // This app's data has not reached this device yet (first sign-in): the portal fetches it first, the app must not
+    // start empty. Its scripts have not run, stop() keeps them from running at all.
+    if (!ready(APP)) {
+      gated = true;
+      document.documentElement.style.visibility = 'hidden';
+      vt.remove();
+      try { window.stop(); } catch { }
+      goPortal();
+      return;
+    }
     ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, touch, { passive: true, capture: true }));
     addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') { dirtySave(); flush().catch(() => { }); }
@@ -779,7 +928,7 @@
     // Another device may have changed this account since this device last synced: apply (the page follows if it uses it).
     const s = sess();
     rpc('amt_status', { p_token: s.t }).then(async st => {
-      if (st && st.head > cur()) await pull();
+      if (st && st.head > cur()) await pull(); else drain();
       flush().catch(() => { });
     }).catch(e => { if (e.code === 'auth' || e.code === 'pin') { lock(); goPortal(); } });
     rtStart();
@@ -1198,7 +1347,7 @@
   }
 
   window.AMATU = {
-    SB_URL, SB_KEY, DEV, APP, rpc, drive, usage: () => rpc('amt_usage', { p_token: tok() }), sess, setSess: s => jset('pt.sess', s), owner, unlocked, touch, lock, enter, leave, flush, pull,
+    SB_URL, SB_KEY, DEV, APP, rpc, drive, usage: () => rpc('amt_usage', { p_token: tok() }), sess, setSess: s => jset('pt.sess', s), owner, unlocked, touch, lock, enter, leave, flush, pull, ready, prepare, downloads,
     pending, synced: () => +(lget('pt.synced') || 0), big: () => jget('pt.big', {}), cur, rtStart, rtStop,
     on: f => listeners.push(f), jget, jset, lget, lset, ldel
   };
