@@ -453,6 +453,7 @@ const P_ = {
   piano: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 20v-6M12 20v-6M16 20v-6"/><path d="M6.5 4v10h3V4M14.5 4v10h3V4" fill="currentColor"/>',
   cv: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><circle cx="10.500" cy="10.500" r="1.800"/><path d="M8 16c.4-1.800 1.300-2.700 2.500-2.700s2.100.9 2.500 2.700M15 11h1.500M15 14.500h1.500"/>',
   link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>',
+  gold: '<path d="M3 20h18l-2.6-6H5.6z"/><path d="M7.4 14l2-4.6h5.2l2 4.6"/><path d="M12 3v2.4M17.2 4.6l-1.4 1.7M6.8 4.6l1.4 1.7"/>',
   // ui
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
@@ -540,6 +541,13 @@ const ART = {
     '<path d="M12 74 27 64 39 69 53 50 65 57 88 30" stroke="#30d158" stroke-width="4.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>' +
     '<circle cx="27" cy="27" r="13" fill="#f7931a"/><text x="27.4" y="32.6" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="16" font-weight="700" fill="#fff">B</text>' +
     '<path d="M25.6 17.6v3M29 17.6v3M25.6 33.4v3M29 33.4v3" stroke="#fff" stroke-width="1.9"/>',
+  xauusd: () => '<defs>' + lg('bg', '#2b2415', '#050403') + lg('au', '#ffe08a', '#c88a12') + lg('at', '#fff6d6', '#f5cf6a') + '</defs>' +
+    '<rect width="100" height="100" fill="url(#bg)"/><path d="M12 48h76M12 64h76M12 80h76" stroke="#fff" stroke-opacity=".09" stroke-width="1.2"/>' +
+    [[24, 60, 84, 64, 77, '#ff453a'], [38, 53, 80, 57, 72, '#30d158'], [52, 57, 78, 61, 71, '#ff453a'], [66, 43, 72, 47, 64, '#30d158'], [80, 30, 60, 34, 52, '#30d158']]
+      .map(([x, w1, w2, b1, b2, c]) => '<path d="M' + x + ' ' + w1 + 'V' + w2 + '" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round"/><rect x="' + (x - 4.5) + '" y="' + b1 + '" width="9" height="' + (b2 - b1) + '" rx="2" fill="' + c + '"/>').join('') +
+    '<path d="M13 41 20.5 26h27l7.5 15z" fill="#000" opacity=".35" transform="translate(0 2.5)"/>' +
+    '<path d="M13 41 20.5 26h27l7.5 15z" fill="url(#au)"/><path d="M20.5 26 25 18.5h18l4.5 7.5z" fill="url(#at)"/>' +
+    '<text x="34" y="37.6" text-anchor="middle" font-family="' + FONT + '" font-size="10.5" font-weight="800" fill="#6b4300">Au</text>',
   rumah3d: () => '<defs>' + lg('bg', '#86d9ff', '#2f86f6') + lg('gr', '#4cd964', '#1fa34a') + '</defs><rect width="100" height="100" fill="url(#bg)"/>' +
     '<circle cx="80" cy="20" r="8" fill="#fff6c9"/><path d="M0 76c22-6 60-8 100-2v26H0z" fill="url(#gr)"/>' +
     '<path d="M26 80V50l17-15 17 15v30z" fill="#fff"/><path d="M60 50l15-9v30l-15 9z" fill="#d7e0ec"/>' +
@@ -656,7 +664,7 @@ const ART = {
 };
 // colour behind the zoom-open animation (roughly the icon's own background)
 const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', corel: '#4cba57',
-  photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
+  photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', xauusd: '#15110a', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
   mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', presentation: '#f58a1f', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', pdf: '#e5322d', playlist: '#15a98c', capcut: '#0ea5c0', shortlink: '#4338ca', cv: '#1f3a5f', settings: '#b4b4ba' };
 const artCache = {};
 function artSrc(id) {
@@ -679,6 +687,7 @@ const APPS = [
   { id: 'calc', name: 'Kalkulator', icon: 'calc', c: 9, d: 'Kalkulator ilmiah + luas/volume' },
   { id: 'planner', name: 'Planner', icon: 'calendar', c: 10, d: 'To-do, kalender, catatan' },
   { id: 'btcusdt', name: 'BTCUSDT', icon: 'chart', c: 11, d: 'Grafik dan analisis BTC' },
+  { id: 'xauusd', name: 'XAUUSD', icon: 'gold', c: 14, d: 'Trading AI Yulius emas & BTC: sinyal price action, rencana strategi, memori pasar, prediksi' },
   { id: 'rumah3d', name: 'Rumah 3D', icon: 'house', c: 12, d: 'Desain rumah 2D/3D' },
   { id: 'rab', name: 'RAB Rumah', icon: 'ruler', c: 13, d: 'Rencana anggaran biaya otomatis' },
   { id: 'english', name: 'English Course', icon: 'book', c: 16, d: 'Belajar bahasa Inggris + modul PDF' },
@@ -709,7 +718,7 @@ const COLORS = [
 ];
 const grad = i => { const c = COLORS[i] || COLORS[14]; return 'linear-gradient(160deg,' + c[0] + ',' + c[1] + ')'; };
 const ICON_CHOICES = ['doc', 'sheet', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
-  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut'];
+  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut', 'gold'];
 const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'], ['grafit', 'Grafit'], ['polos', 'Polos']];
 
 // ---------- per-account portal settings (synced like every other key) ----------
