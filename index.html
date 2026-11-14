@@ -412,6 +412,7 @@ const EASE = 'cubic-bezier(.22,.9,.28,1)';
 // ---------- glyphs ----------
 const P_ = {
   slides: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 8.5h6M7 11.5h4M12 16v4M8 20h8"/>',
+  paparan: '<rect x="2.5" y="5" width="16" height="11" rx="2"/><path d="M10.5 16v3.5M7 19.5h7M6.5 12.5v-2M9.5 12.5V8.5M12.5 12.5v-3"/><path d="M19.6 1.8l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z"/>',
   doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/>',
   sheet: '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M3.5 14.5h17M9 3.5v17"/>',
   note: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4M8 12h8M8 16h5"/>',
@@ -600,6 +601,13 @@ const ART = {
     '<path d="M26 66c6-11 12-15 17-10s9 7 16-5" stroke="#2f7bf6" stroke-width="5.5" fill="none" stroke-linecap="round"/><path d="M27 43c5-7 11-8 15-3" stroke="#ffb020" stroke-width="5.5" fill="none" stroke-linecap="round"/><circle cx="56" cy="34" r="6" fill="#34c759"/></g>' +
     '<g transform="translate(-5 3) rotate(38 74 60)"><rect x="70" y="20" width="9" height="36" rx="3.5" fill="#8a1840" opacity=".3" transform="translate(1.5 2)"/><rect x="70" y="20" width="9" height="36" rx="3.5" fill="#ffd23f"/><rect x="69.5" y="54" width="10" height="8" rx="1" fill="#d5d8de"/>' +
     '<path d="M69.5 62h10c0 7-2.2 11.5-5 15-2.8-3.5-5-8-5-15z" fill="#1f1f24"/><path d="M71.5 64c0 5 1.2 8.6 3 11.2" stroke="#e5306f" stroke-width="2" fill="none" stroke-linecap="round"/></g>',
+  paparan: () => bgG('#7f8cff', '#3a2bb5') +
+    '<rect x="19" y="10" width="34" height="42" rx="4" fill="#1d1270" opacity=".28" transform="rotate(-9 36 31)"/><rect x="18" y="8" width="34" height="42" rx="4" fill="#dfe3ff" transform="rotate(-9 35 29)"/>' +
+    '<path d="M24 17.5h17M24.6 22.5h13M25.2 27.5h15" stroke="#9aa3e8" stroke-width="2.6" stroke-linecap="round" transform="rotate(-9 35 29)"/>' +
+    '<rect x="21" y="34" width="62" height="40" rx="6" fill="#1d1270" opacity=".3" transform="translate(0 2.5)"/><rect x="21" y="34" width="62" height="40" rx="6" fill="#fff"/>' +
+    '<rect x="31" y="54" width="8" height="12" rx="2" fill="#f5a524"/><rect x="43" y="45" width="8" height="21" rx="2" fill="#22c3e6"/><rect x="55" y="50" width="8" height="16" rx="2" fill="#ff5c93"/>' +
+    '<path d="M31 66.5h37" stroke="#d6dbf0" stroke-width="1.6"/><path d="M52 74v8M42 89l10-7 10 7" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+    '<path d="M76 12l2.6 6.4L85 21l-6.4 2.6L76 30l-2.6-6.4L67 21l6.4-2.6z" fill="#ffd23f" stroke="#3a2bb5" stroke-width="1.2" stroke-linejoin="round"/>',
   presentation: () => bgG('#ffc247', '#ee6a0c') +
     '<rect x="15" y="21" width="70" height="46" rx="6" fill="#a8430a" opacity=".3" transform="translate(0 2.5)"/><rect x="15" y="21" width="70" height="46" rx="6" fill="#fff"/>' +
     '<rect x="23" y="30" width="27" height="5" rx="2.5" fill="#ee6a0c"/><rect x="23" y="40" width="19" height="3.6" rx="1.8" fill="#f8b46b"/><rect x="23" y="47" width="23" height="3.6" rx="1.8" fill="#f8b46b"/>' +
@@ -672,7 +680,7 @@ const ART = {
 // colour behind the zoom-open animation (roughly the icon's own background)
 const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', corel: '#4cba57',
   photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', xauusd: '#15110a', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
-  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', translator: '#5468ff', presentation: '#f58a1f', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', pdf: '#e5322d', playlist: '#15a98c', capcut: '#0ea5c0', shortlink: '#4338ca', cv: '#1f3a5f', settings: '#b4b4ba' };
+  mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', translator: '#5468ff', presentation: '#f58a1f', paparan: '#4b3fd6', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', pdf: '#e5322d', playlist: '#15a98c', capcut: '#0ea5c0', shortlink: '#4338ca', cv: '#1f3a5f', settings: '#b4b4ba' };
 const artCache = {};
 function artSrc(id) {
   const k = id === 'planner' ? id + new Date().toDateString() : id;
@@ -684,6 +692,7 @@ const APPS = [
   { id: 'docs', name: 'Amatu Docs', icon: 'doc', c: 0, d: 'Dokumen gaya Google Docs + Word' },
   { id: 'spreadsheet', name: 'Amatu Sheets', icon: 'sheet', c: 1, d: 'Spreadsheet dengan rumus' },
   { id: 'presentation', name: 'Amatu Slides', icon: 'slides', c: 9, d: 'Presentasi gaya Google Slides + PowerPoint' },
+  { id: 'paparan', name: 'Paparan', icon: 'paparan', c: 5, d: 'Unggah PDF, Word, Excel apa pun: AI pelajari isinya, jawab pertanyaan & buat paparan presentasi otomatis' },
   { id: 'notes', name: 'Notes', icon: 'note', c: 2, d: 'Catatan, checklist, kategori' },
   { id: 'saku', name: 'Saku', icon: 'wallet', c: 3, d: 'Keuangan pribadi' },
   { id: 'sketchup', name: 'Amatu Sketch', icon: 'cube', c: 4, d: 'Model 3D gaya SketchUp' },
@@ -726,7 +735,7 @@ const COLORS = [
 ];
 const grad = i => { const c = COLORS[i] || COLORS[14]; return 'linear-gradient(160deg,' + c[0] + ',' + c[1] + ')'; };
 const ICON_CHOICES = ['doc', 'sheet', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
-  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'translate', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut', 'gold'];
+  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'translate', 'paparan', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut', 'gold'];
 const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'], ['grafit', 'Grafit'], ['polos', 'Polos']];
 
 // ---------- per-account portal settings (synced like every other key) ----------
