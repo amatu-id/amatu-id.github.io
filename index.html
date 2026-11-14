@@ -455,6 +455,7 @@ const P_ = {
   piano: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 20v-6M12 20v-6M16 20v-6"/><path d="M6.5 4v10h3V4M14.5 4v10h3V4" fill="currentColor"/>',
   cv: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><circle cx="10.500" cy="10.500" r="1.800"/><path d="M8 16c.4-1.800 1.300-2.700 2.500-2.700s2.100.9 2.500 2.700M15 11h1.500M15 14.500h1.500"/>',
   link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>',
+  scalp: '<path d="M3 4.5h18M3 19.5h18"/><path d="M8 7v8M16 9v8"/><rect x="6" y="9" width="4" height="4" rx=".8"/><rect x="14" y="11" width="4" height="4" rx=".8"/>',
   gold: '<path d="M3 20h18l-2.6-6H5.6z"/><path d="M7.4 14l2-4.6h5.2l2 4.6"/><path d="M12 3v2.4M17.2 4.6l-1.4 1.7M6.8 4.6l1.4 1.7"/>',
   // ui
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -550,6 +551,12 @@ const ART = {
     '<path d="M13 41 20.5 26h27l7.5 15z" fill="#000" opacity=".35" transform="translate(0 2.5)"/>' +
     '<path d="M13 41 20.5 26h27l7.5 15z" fill="url(#au)"/><path d="M20.5 26 25 18.5h18l4.5 7.5z" fill="url(#at)"/>' +
     '<text x="34" y="37.6" text-anchor="middle" font-family="' + FONT + '" font-size="10.5" font-weight="800" fill="#6b4300">Au</text>',
+  scalping: () => '<defs>' + lg('bg', '#1c2331', '#05070b') + '</defs><rect width="100" height="100" fill="url(#bg)"/>' +
+    '<rect x="10" y="22" width="80" height="11" fill="#f2545b" opacity=".18"/><rect x="10" y="67" width="80" height="11" fill="#22c39a" opacity=".18"/>' +
+    '<path d="M10 22h80" stroke="#f2545b" stroke-width="3" stroke-linecap="round"/><path d="M10 78h80" stroke="#22c39a" stroke-width="3" stroke-linecap="round"/>' +
+    [[22, 25, 52, 30, 46, '#f2545b'], [36, 40, 66, 46, 60, '#f2545b'], [50, 54, 78, 61, 71, '#22c39a'], [64, 40, 64, 44, 58, '#22c39a'], [78, 26, 50, 31, 44, '#22c39a']]
+      .map(([x, w1, w2, b1, b2, c]) => '<path d="M' + x + ' ' + w1 + 'V' + w2 + '" stroke="' + c + '" stroke-width="2.4" stroke-linecap="round"/><rect x="' + (x - 4.5) + '" y="' + b1 + '" width="9" height="' + (b2 - b1) + '" rx="2" fill="' + c + '"/>').join('') +
+    '<circle cx="50" cy="78" r="4.2" fill="#f5b041" stroke="#05070b" stroke-width="1.6"/>',
   rumah3d: () => '<defs>' + lg('bg', '#86d9ff', '#2f86f6') + lg('gr', '#4cd964', '#1fa34a') + '</defs><rect width="100" height="100" fill="url(#bg)"/>' +
     '<circle cx="80" cy="20" r="8" fill="#fff6c9"/><path d="M0 76c22-6 60-8 100-2v26H0z" fill="url(#gr)"/>' +
     '<path d="M26 80V50l17-15 17 15v30z" fill="#fff"/><path d="M60 50l15-9v30l-15 9z" fill="#d7e0ec"/>' +
@@ -679,7 +686,7 @@ const ART = {
 };
 // colour behind the zoom-open animation (roughly the icon's own background)
 const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', corel: '#4cba57',
-  photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', xauusd: '#15110a', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
+  photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', xauusd: '#15110a', scalping: '#0f141c', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
   mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', translator: '#5468ff', presentation: '#f58a1f', paparan: '#4b3fd6', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', pdf: '#e5322d', playlist: '#15a98c', capcut: '#0ea5c0', shortlink: '#4338ca', cv: '#1f3a5f', settings: '#b4b4ba' };
 const artCache = {};
 function artSrc(id) {
@@ -704,6 +711,7 @@ const APPS = [
   { id: 'planner', name: 'Planner', icon: 'calendar', c: 10, d: 'To-do, kalender, catatan' },
   { id: 'btcusdt', name: 'BTCUSDT', icon: 'chart', c: 11, d: 'Grafik dan analisis BTC' },
   { id: 'xauusd', name: 'XAUUSD', icon: 'gold', c: 14, d: 'Trading AI Yulius emas & BTC: sinyal price action, rencana strategi, memori pasar, prediksi' },
+  { id: 'scalping', name: 'Scalping', icon: 'scalp', c: 15, d: 'Scalping BTCUSDT & XAUUSDm 1m/5m: batas atas/bawah otomatis, strategi dari uji riwayat, sinyal tiap detik' },
   { id: 'rumah3d', name: 'Rumah 3D', icon: 'house', c: 12, d: 'Desain rumah 2D/3D' },
   { id: 'rab', name: 'RAB Rumah', icon: 'ruler', c: 13, d: 'Rencana anggaran biaya otomatis' },
   { id: 'english', name: 'English Course', icon: 'book', c: 16, d: 'Belajar bahasa Inggris + modul PDF' },
@@ -735,7 +743,7 @@ const COLORS = [
 ];
 const grad = i => { const c = COLORS[i] || COLORS[14]; return 'linear-gradient(160deg,' + c[0] + ',' + c[1] + ')'; };
 const ICON_CHOICES = ['doc', 'sheet', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
-  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'translate', 'paparan', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut', 'gold'];
+  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'translate', 'paparan', 'guitar', 'piano', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut', 'gold', 'scalp'];
 const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'], ['grafit', 'Grafit'], ['polos', 'Polos']];
 
 // ---------- per-account portal settings (synced like every other key) ----------
