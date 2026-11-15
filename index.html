@@ -165,6 +165,7 @@ svg{display:block}
 .lb{font-size:var(--lf);line-height:1.25;font-weight:500;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   text-shadow:0 1px 3px color-mix(in srgb,var(--bg) 70%,transparent)}
 html[data-mode=dark] .lb{text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.lb .nw{display:inline-block;width:.5em;height:.5em;border-radius:50%;background:#0a84ff;margin-right:.32em;vertical-align:.08em;box-shadow:0 0 0 1.5px rgba(255,255,255,.55)}
 html[data-nolabel] .page .lb{display:none}
 .x{position:absolute;top:-7px;left:-7px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(120,120,128,.82);color:#fff;
   display:none;align-items:center;justify-content:center;cursor:pointer;z-index:3;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 1px 4px rgba(0,0,0,.2)}
@@ -757,8 +758,31 @@ const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hut
 // ---------- per-account portal settings (synced like every other key) ----------
 const DEF = () => ({ v: 1, order: APPS.map(a => a.id).concat('settings'), hidden: [], custom: {}, dock: ['notes', 'planner', 'saku', 'calc'], links: [],
   mode: 'auto', wall: 'aurora', size: 'm', labels: true, idle: 15, bg: '1', recent: [] });
+// An account that saved its own layout gets apps released later appended after "Pengaturan" (last page).
+// Apps listed here are placed ONCE next to their neighbour in APPS instead (Prime right after Amatu Piano),
+// with a blue dot before the name until opened (max 21 days). Add each new app here: id: 'release date'.
+const NEW_APPS = { prime: '2026-11-15' };
+function placeNew(p) {
+  const ids = APPS.map(a => a.id), now = Date.now(); let ch = false;
+  p.placed = Array.isArray(p.placed) ? p.placed : []; p.fresh = p.fresh && typeof p.fresh === 'object' ? p.fresh : {};
+  for (const id in NEW_APPS) {
+    if (p.placed.includes(id) || !ids.includes(id)) continue;
+    p.placed.push(id); ch = true;
+    if (p.order.includes(id)) continue;   // the person put it somewhere already
+    let k = ids.indexOf(id) - 1, at = -1;
+    while (k >= 0 && (at = p.order.indexOf(ids[k])) < 0) k--;
+    p.order.splice(at < 0 ? p.order.length : at + 1, 0, id);
+    if (now - Date.parse(NEW_APPS[id]) < 21 * 864e5) p.fresh[id] = now;
+  }
+  for (const id in p.fresh) if (now - p.fresh[id] > 21 * 864e5) { delete p.fresh[id]; ch = true; }
+  return ch;
+}
 let P = load();
-function load() { const d = DEF(), p = A.jget('amatu.portal', null) || {}; return Object.assign(d, p); }
+function load() {
+  const d = DEF(), saved = A.jget('amatu.portal', null), p = Object.assign(d, saved || {});
+  if (saved && Array.isArray(saved.order) && placeNew(p)) { p.updated = Date.now(); try { localStorage.setItem('amatu.portal', JSON.stringify(p)); } catch { } }
+  return p;
+}
 function save() { P.updated = Date.now(); localStorage.setItem('amatu.portal', JSON.stringify(P)); }
 function theme() {
   const r = document.documentElement;
@@ -1187,7 +1211,7 @@ addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => {
 
 const tileHtml = (it, where) => '<div class="tile" data-id="' + esc(it.id) + '" title="' + esc(it.name + (it.d ? ' — ' + it.d : '')) + '"><div class="icw">' +
   (it.id === 'settings' && where !== 'dock' ? '' : '<button class="x" data-x aria-label="' + (where === 'dock' ? 'Lepas dari Dock' : 'Sembunyikan') + '">' + svg('minus', 3.2) + '</button>') +
-  (it.id === 'settings' ? '<span class="badge" hidden></span>' : '') + icon(it) + '</div><div class="lb">' + esc(it.name) + '</div></div>';
+  (it.id === 'settings' ? '<span class="badge" hidden></span>' : '') + icon(it) + '</div><div class="lb">' + (P.fresh && P.fresh[it.id] ? '<i class="nw" title="Baru"></i>' : '') + esc(it.name) + '</div></div>';
 function widgetHtml(w) {
   const pos = ' style="grid-column:' + w.c + '/span ' + w.w + ';grid-row:' + w.r + '/span ' + w.h + '"', med = w.w >= 4 ? ' med' : '', s = A.sess();
   if (w.k === 'clock') return '<div class="wg wg-clock' + med + '"' + pos + '><div class="wb">' + (med
@@ -1251,6 +1275,7 @@ function openItem(id, from) {
   const it = items()[id]; if (!it || opening) return;
   if (id === 'settings') return settings();
   P.recent = [{ id, at: Date.now() }].concat((P.recent || []).filter(r => r.id !== id)).slice(0, 8);
+  if (P.fresh && P.fresh[id]) delete P.fresh[id];
   save();
   if (it.link) { window.open(it.href, '_blank', 'noopener'); renderTiles(); return; }
   const ok = A.ready(appOf(it.href)), gateUrl = '/?next=' + encodeURIComponent(it.href);
@@ -1803,6 +1828,23 @@ addEventListener('visibilitychange', () => {
   if ($('#grid') && !A.unlocked()) lockNow();
   else if ($('#grid')) A.pull().then(r => r.changed && refresh()).catch(() => { });
 });
+
+// ---------- this page updates itself ----------
+// The portal stays open for days (pinned tab, Home Screen app) and amatu.js never reloads it, while the app list lives
+// in this file: when it comes back to the front (at most every 5 min) look for a newer version and reload if idle.
+const PORTAL_VER = '2026-11-15-prime';
+let pvAt = Date.now();
+function portalUpdate() {
+  if (document.visibilityState !== 'visible' || Date.now() - pvAt < 300000) return;
+  pvAt = Date.now();
+  fetch('/?_=' + pvAt, { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
+    const m = /const PORTAL_VER = '([^']+)'/.exec(t);
+    if (!m || m[1] === PORTAL_VER || opening || editing || drag || $('#ov') || $('#spot') || $('#qa') || $('input:focus,textarea:focus')) return;
+    A.flush().catch(() => { }).finally(() => location.reload());
+  }).catch(() => { });
+}
+addEventListener('visibilitychange', portalUpdate);
+addEventListener('focus', portalUpdate);
 
 // ---------- boot ----------
 async function boot() {
