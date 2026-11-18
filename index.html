@@ -460,6 +460,7 @@ const P_ = {
   cv: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><circle cx="10.500" cy="10.500" r="1.800"/><path d="M8 16c.4-1.800 1.300-2.700 2.500-2.700s2.100.9 2.500 2.700M15 11h1.500M15 14.500h1.500"/>',
   link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>',
   scalp: '<path d="M3 4.5h18M3 19.5h18"/><path d="M8 7v8M16 9v8"/><rect x="6" y="9" width="4" height="4" rx=".8"/><rect x="14" y="11" width="4" height="4" rx=".8"/>',
+  trade: '<path d="M7 4v16M17 4v16"/><rect x="4.5" y="8" width="5" height="7" rx="1"/><rect x="14.5" y="6.5" width="5" height="9" rx="1"/>',
   gold: '<path d="M3 20h18l-2.6-6H5.6z"/><path d="M7.4 14l2-4.6h5.2l2 4.6"/><path d="M12 3v2.4M17.2 4.6l-1.4 1.7M6.8 4.6l1.4 1.7"/>',
   // ui
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -577,6 +578,13 @@ const ART = {
     [[22, 25, 52, 30, 46, '#f2545b'], [36, 40, 66, 46, 60, '#f2545b'], [50, 54, 78, 61, 71, '#22c39a'], [64, 40, 64, 44, 58, '#22c39a'], [78, 26, 50, 31, 44, '#22c39a']]
       .map(([x, w1, w2, b1, b2, c]) => '<path d="M' + x + ' ' + w1 + 'V' + w2 + '" stroke="' + c + '" stroke-width="2.4" stroke-linecap="round"/><rect x="' + (x - 4.5) + '" y="' + b1 + '" width="9" height="' + (b2 - b1) + '" rx="2" fill="' + c + '"/>').join('') +
     '<circle cx="50" cy="78" r="4.2" fill="#f5b041" stroke="#05070b" stroke-width="1.6"/>',
+  exness: () => '<defs>' + lg('bg', '#1f2c33', '#0a0f12') + '</defs><rect width="100" height="100" fill="url(#bg)"/>' +
+    '<path d="M12 20h76M12 36h76M12 52h76" stroke="#fff" stroke-opacity=".08" stroke-width="1.2"/>' +
+    [[21, 30, 56, 36, 50, '#eb483f'], [33, 25, 52, 30, 44, '#158bf9'], [45, 17, 45, 21, 35, '#158bf9'], [57, 22, 48, 27, 40, '#eb483f'], [69, 12, 38, 16, 28, '#158bf9']]
+      .map(([x, w1, w2, b1, b2, c]) => '<path d="M' + x + ' ' + w1 + 'V' + w2 + '" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round"/><rect x="' + (x - 4.2) + '" y="' + b1 + '" width="8.4" height="' + (b2 - b1) + '" rx="1.8" fill="' + c + '"/>').join('') +
+    '<path d="M10 33h80" stroke="#ffde02" stroke-width="1.6" stroke-dasharray="3 2.4"/><rect x="77" y="28.5" width="13" height="9" rx="2" fill="#ffde02"/>' +
+    '<rect x="11" y="64" width="37" height="22" rx="4.5" fill="#eb483f"/><rect x="52" y="64" width="37" height="22" rx="4.5" fill="#158bf9"/>' +
+    '<text x="29.5" y="78.6" text-anchor="middle" font-family="' + FONT + '" font-size="10" font-weight="800" fill="#fff">SELL</text><text x="70.5" y="78.6" text-anchor="middle" font-family="' + FONT + '" font-size="10" font-weight="800" fill="#fff">BUY</text>',
   rumah3d: () => '<defs>' + lg('bg', '#86d9ff', '#2f86f6') + lg('gr', '#4cd964', '#1fa34a') + '</defs><rect width="100" height="100" fill="url(#bg)"/>' +
     '<circle cx="80" cy="20" r="8" fill="#fff6c9"/><path d="M0 76c22-6 60-8 100-2v26H0z" fill="url(#gr)"/>' +
     '<path d="M26 80V50l17-15 17 15v30z" fill="#fff"/><path d="M60 50l15-9v30l-15 9z" fill="#d7e0ec"/>' +
@@ -718,7 +726,7 @@ const ART = {
 };
 // colour behind the zoom-open animation (roughly the icon's own background)
 const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', msproject: '#0f7a55', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', drone: '#0b4fa8', maps: '#ece6d8', corel: '#4cba57',
-  photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', xauusd: '#15110a', scalping: '#0f141c', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
+  photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', xauusd: '#15110a', scalping: '#0f141c', exness: '#141d22', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
   mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', prime: '#16171c', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', translator: '#5468ff', presentation: '#f58a1f', paparan: '#4b3fd6', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', pdf: '#e5322d', playlist: '#15a98c', capcut: '#0ea5c0', shortlink: '#4338ca', cv: '#1f3a5f', settings: '#b4b4ba' };
 const artCache = {};
 function artSrc(id) {
@@ -747,6 +755,7 @@ const APPS = [
   { id: 'btcusdt', name: 'BTCUSDT', icon: 'chart', c: 11, d: 'Grafik dan analisis BTC' },
   { id: 'xauusd', name: 'XAUUSD', icon: 'gold', c: 14, d: 'Trading AI Yulius emas & BTC: sinyal price action, rencana strategi, memori pasar, prediksi' },
   { id: 'scalping', name: 'Scalping', icon: 'scalp', c: 15, d: 'Scalping BTCUSDT & XAUUSDm 1m/5m: batas dari puncak/lembah gelombang, pola candle + price action, jam pasir, sinyal tiap detik' },
+  { id: 'exness', name: 'Amatu Trade', icon: 'trade', c: 15, d: 'Terminal trading gaya Exness: harga real-time forex, emas, indeks, minyak, saham & kripto; order market/pending, TP/SL, margin & stop out, chart + gambar + indikator, akun & deposit virtual' },
   { id: 'rumah3d', name: 'Rumah 3D', icon: 'house', c: 12, d: 'Desain rumah 2D/3D' },
   { id: 'rab', name: 'RAB Rumah', icon: 'ruler', c: 13, d: 'Rencana anggaran biaya otomatis' },
   { id: 'english', name: 'English Course', icon: 'book', c: 16, d: 'Belajar bahasa Inggris + modul PDF' },
@@ -779,7 +788,7 @@ const COLORS = [
 ];
 const grad = i => { const c = COLORS[i] || COLORS[14]; return 'linear-gradient(160deg,' + c[0] + ',' + c[1] + ')'; };
 const ICON_CHOICES = ['doc', 'sheet', 'gantt', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
-  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'translate', 'paparan', 'guitar', 'piano', 'prime', 'drone', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut', 'gold', 'scalp'];
+  'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'translate', 'paparan', 'guitar', 'piano', 'prime', 'drone', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut', 'gold', 'scalp', 'trade'];
 const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'], ['grafit', 'Grafit'], ['polos', 'Polos']];
 
 // ---------- per-account portal settings (synced like every other key) ----------
@@ -788,7 +797,7 @@ const DEF = () => ({ v: 1, order: APPS.map(a => a.id).concat('settings'), hidden
 // An account that saved its own layout gets apps released later appended after "Pengaturan" (last page).
 // Apps listed here are placed ONCE next to their neighbour in APPS instead (Prime right after Amatu Piano),
 // with a blue dot before the name until opened (max 21 days). Add each new app here: id: 'release date'.
-const NEW_APPS = { prime: '2026-11-15', drone: '2026-11-15', msproject: '2026-11-18', maps: '2026-11-18' };
+const NEW_APPS = { prime: '2026-11-15', drone: '2026-11-15', msproject: '2026-11-18', maps: '2026-11-18', exness: '2026-11-18' };
 function placeNew(p) {
   const ids = APPS.map(a => a.id), now = Date.now(); let ch = false;
   p.placed = Array.isArray(p.placed) ? p.placed : []; p.fresh = p.fresh && typeof p.fresh === 'object' ? p.fresh : {};
@@ -1859,7 +1868,7 @@ addEventListener('visibilitychange', () => {
 // ---------- this page updates itself ----------
 // The portal stays open for days (pinned tab, Home Screen app) and amatu.js never reloads it, while the app list lives
 // in this file: when it comes back to the front (at most every 5 min) look for a newer version and reload if idle.
-const PORTAL_VER = '2026-11-18-maps';
+const PORTAL_VER = '2026-11-18-exness';
 let pvAt = Date.now();
 function portalUpdate() {
   if (document.visibilityState !== 'visible' || Date.now() - pvAt < 300000) return;
