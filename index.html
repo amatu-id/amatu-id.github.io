@@ -413,6 +413,7 @@ const EASE = 'cubic-bezier(.22,.9,.28,1)';
 // ---------- glyphs ----------
 const P_ = {
   slides: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 8.5h6M7 11.5h4M12 16v4M8 20h8"/>',
+  gantt: '<path d="M3.5 3.5v17h17"/><rect x="6.5" y="5.5" width="8" height="3" rx="1.2"/><rect x="10" y="10.5" width="7.5" height="3" rx="1.2"/><rect x="13.5" y="15.5" width="5" height="3" rx="1.2"/>',
   paparan: '<rect x="2.5" y="5" width="16" height="11" rx="2"/><path d="M10.5 16v3.5M7 19.5h7M6.5 12.5v-2M9.5 12.5V8.5M12.5 12.5v-3"/><path d="M19.6 1.8l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z"/>',
   doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/>',
   sheet: '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M3.5 14.5h17M9 3.5v17"/>',
@@ -631,6 +632,12 @@ const ART = {
     '<rect x="31" y="54" width="8" height="12" rx="2" fill="#f5a524"/><rect x="43" y="45" width="8" height="21" rx="2" fill="#22c3e6"/><rect x="55" y="50" width="8" height="16" rx="2" fill="#ff5c93"/>' +
     '<path d="M31 66.5h37" stroke="#d6dbf0" stroke-width="1.6"/><path d="M52 74v8M42 89l10-7 10 7" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
     '<path d="M76 12l2.6 6.4L85 21l-6.4 2.6L76 30l-2.6-6.4L67 21l6.4-2.6z" fill="#ffd23f" stroke="#3a2bb5" stroke-width="1.2" stroke-linejoin="round"/>',
+  msproject: () => bgG('#3fcf9a', '#0b6b4f') +
+    '<rect x="13" y="17" width="74" height="64" rx="7" fill="#06402f" opacity=".3" transform="translate(0 2.5)"/><rect x="13" y="17" width="74" height="64" rx="7" fill="#fff"/>' +
+    '<path d="M13 30h74" stroke="#cfeadf" stroke-width="1.6"/><path d="M33 30v51M50 30v51M67 30v51" stroke="#edf6f1" stroke-width="1.4"/><rect x="20" y="21.5" width="20" height="4" rx="2" fill="#9fd8c2"/>' +
+    '<rect x="20" y="36" width="27" height="8.5" rx="3.2" fill="#12966a"/><rect x="38" y="50" width="25" height="8.5" rx="3.2" fill="#2f80ed"/><rect x="52" y="64" width="20" height="8.5" rx="3.2" fill="#e2574c"/>' +
+    '<path d="M47 40.2h3.5v9.6M63 54.2h3.5v9.6" stroke="#0b6b4f" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<path d="M79.5 61.5l5.5 5.5-5.5 5.5-5.5-5.5z" fill="#ffd34d" stroke="#a87b00" stroke-width="1.1" stroke-linejoin="round"/>',
   presentation: () => bgG('#ffc247', '#ee6a0c') +
     '<rect x="15" y="21" width="70" height="46" rx="6" fill="#a8430a" opacity=".3" transform="translate(0 2.5)"/><rect x="15" y="21" width="70" height="46" rx="6" fill="#fff"/>' +
     '<rect x="23" y="30" width="27" height="5" rx="2.5" fill="#ee6a0c"/><rect x="23" y="40" width="19" height="3.6" rx="1.8" fill="#f8b46b"/><rect x="23" y="47" width="23" height="3.6" rx="1.8" fill="#f8b46b"/>' +
@@ -701,7 +708,7 @@ const ART = {
     '<path d="M67.5 49.1L71.0 50.8L70.5 54.7L66.7 55.3L65.6 58.0L67.8 61.1L65.4 64.3L61.8 63.0L59.5 64.7L59.8 68.6L56.2 70.1L53.7 67.1L50.9 67.5L49.2 71.0L45.3 70.5L44.7 66.7L42.0 65.6L38.9 67.8L35.7 65.4L37.0 61.8L35.3 59.5L31.4 59.8L29.9 56.2L32.9 53.7L32.5 50.9L29.0 49.2L29.5 45.3L33.3 44.7L34.4 42.0L32.2 38.9L34.6 35.7L38.2 37.0L40.5 35.3L40.2 31.4L43.8 29.9L46.3 32.9L49.1 32.5L50.8 29.0L54.7 29.5L55.3 33.3L58.0 34.4L61.1 32.2L64.3 34.6L63.0 38.2L64.7 40.5L68.6 40.2L70.1 43.8L67.1 46.3Z" fill="#5a5a5e"/><circle cx="50" cy="50" r="12" fill="url(#r)"/><circle cx="50" cy="50" r="5" fill="#4a4a4e"/>'
 };
 // colour behind the zoom-open animation (roughly the icon's own background)
-const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', drone: '#0b4fa8', corel: '#4cba57',
+const BASE = { docs: '#2a74ef', spreadsheet: '#1fb04a', msproject: '#0f7a55', notes: '#fdfdfd', saku: '#141415', sketchup: '#e9475a', autocad: '#2a35a8', drone: '#0b4fa8', corel: '#4cba57',
   photoshop: '#132b47', canva: '#b55ae0', calc: '#232325', planner: '#ffffff', btcusdt: '#0b0b0c', xauusd: '#15110a', scalping: '#0f141c', rumah3d: '#4aa6fa', rab: '#f7b638', english: '#ff8a20',
   mandarin: '#2272ec', guitars: '#e5672a', piano: '#202022', prime: '#16171c', struk: '#1aa892', scan: '#1f2937', totext: '#2563eb', translator: '#5468ff', presentation: '#f58a1f', paparan: '#4b3fd6', sketch: '#f2566a', collage: '#8b5cf6', games: '#7c3aed', downloader: '#e11d48', background: '#1e88ee', enhance: '#f97316', pdf: '#e5322d', playlist: '#15a98c', capcut: '#0ea5c0', shortlink: '#4338ca', cv: '#1f3a5f', settings: '#b4b4ba' };
 const artCache = {};
@@ -715,6 +722,7 @@ const APPS = [
   { id: 'docs', name: 'Amatu Docs', icon: 'doc', c: 0, d: 'Dokumen gaya Google Docs + Word' },
   { id: 'spreadsheet', name: 'Amatu Sheets', icon: 'sheet', c: 1, d: 'Spreadsheet dengan rumus' },
   { id: 'presentation', name: 'Amatu Slides', icon: 'slides', c: 9, d: 'Presentasi gaya Google Slides + PowerPoint' },
+  { id: 'msproject', name: 'Amatu Project', icon: 'gantt', c: 12, d: 'Jadwal proyek gaya Microsoft Project: Gantt, jalur kritis, sumber daya, pemerataan, laporan, cetak & ekspor Excel/XML' },
   { id: 'paparan', name: 'Paparan', icon: 'paparan', c: 5, d: 'Unggah PDF, Word, Excel apa pun: AI pelajari isinya, jawab pertanyaan & buat paparan presentasi otomatis' },
   { id: 'notes', name: 'Notes', icon: 'note', c: 2, d: 'Catatan, checklist, kategori' },
   { id: 'saku', name: 'Saku', icon: 'wallet', c: 3, d: 'Keuangan pribadi' },
@@ -760,7 +768,7 @@ const COLORS = [
   ['#22d3ee', '#0e7490'], ['#f43f5e', '#9f1239'], ['#fbbf24', '#92400e'], ['#6b7280', '#111827']
 ];
 const grad = i => { const c = COLORS[i] || COLORS[14]; return 'linear-gradient(160deg,' + c[0] + ',' + c[1] + ')'; };
-const ICON_CHOICES = ['doc', 'sheet', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
+const ICON_CHOICES = ['doc', 'sheet', 'gantt', 'note', 'wallet', 'cube', 'compass', 'pen', 'image', 'palette', 'calc', 'calendar', 'chart', 'house', 'ruler',
   'receipt', 'star', 'folder', 'globe', 'book', 'lang', 'translate', 'paparan', 'guitar', 'piano', 'prime', 'drone', 'camera', 'music', 'bolt', 'grid', 'map', 'heart', 'cart', 'link', 'scan', 'text', 'brush', 'collage', 'game', 'download', 'cutout', 'enhance', 'pdf', 'capcut', 'gold', 'scalp'];
 const WALLS = [['aurora', 'Aurora'], ['senja', 'Senja'], ['laut', 'Laut'], ['hutan', 'Hutan'], ['grafit', 'Grafit'], ['polos', 'Polos']];
 
@@ -770,7 +778,7 @@ const DEF = () => ({ v: 1, order: APPS.map(a => a.id).concat('settings'), hidden
 // An account that saved its own layout gets apps released later appended after "Pengaturan" (last page).
 // Apps listed here are placed ONCE next to their neighbour in APPS instead (Prime right after Amatu Piano),
 // with a blue dot before the name until opened (max 21 days). Add each new app here: id: 'release date'.
-const NEW_APPS = { prime: '2026-11-15', drone: '2026-11-15' };
+const NEW_APPS = { prime: '2026-11-15', drone: '2026-11-15', msproject: '2026-11-18' };
 function placeNew(p) {
   const ids = APPS.map(a => a.id), now = Date.now(); let ch = false;
   p.placed = Array.isArray(p.placed) ? p.placed : []; p.fresh = p.fresh && typeof p.fresh === 'object' ? p.fresh : {};
@@ -1841,7 +1849,7 @@ addEventListener('visibilitychange', () => {
 // ---------- this page updates itself ----------
 // The portal stays open for days (pinned tab, Home Screen app) and amatu.js never reloads it, while the app list lives
 // in this file: when it comes back to the front (at most every 5 min) look for a newer version and reload if idle.
-const PORTAL_VER = '2026-11-15-drone';
+const PORTAL_VER = '2026-11-18-msproject';
 let pvAt = Date.now();
 function portalUpdate() {
   if (document.visibilityState !== 'visible' || Date.now() - pvAt < 300000) return;
